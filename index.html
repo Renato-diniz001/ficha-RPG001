@@ -1,0 +1,2038 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>INFECÇÃO X — Ficha de Sobrevivente</title>
+    <style>
+        /* ==========================================================================
+           DESIGN TOKENS & PALETA APOCALÍPTICA (100% OFFLINE / SEM DEPENDÊNCIAS)
+           ========================================================================== */
+        :root {
+            --bg-main: #0d0f10;
+            --bg-card: #16191c;
+            --bg-input: #101214;
+            --bg-elevated: #1e2226;
+            --border-metal: #2a2f35;
+            --border-highlight: #3c434c;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --accent-red: #dc2626;
+            --accent-red-hover: #b91c1c;
+            --accent-red-soft: rgba(220, 38, 38, 0.14);
+            --accent-amber: #d97706;
+            --accent-amber-soft: rgba(217, 119, 6, 0.14);
+            --accent-blue: #2563eb;
+            --accent-blue-soft: rgba(37, 99, 235, 0.15);
+            --accent-emerald: #10b981;
+            --radius-lg: 10px;
+            --radius-md: 8px;
+            --radius-sm: 6px;
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.45);
+        }
+
+        /* Reset & Base */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            line-height: 1.5;
+            min-height: 100vh;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        /* Efeito sutil de scanline de terminal (opcional via botão) */
+        .scanline-overlay {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 90;
+            background: repeating-linear-gradient(
+                to bottom,
+                transparent 0px,
+                transparent 3px,
+                rgba(0, 0, 0, 0.16) 4px
+            );
+            opacity: 0.55;
+            transition: opacity 0.25s ease;
+        }
+
+        .scanline-overlay.hidden-scanline {
+            opacity: 0;
+        }
+
+        /* Scrollbar personalizada */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-main);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-metal);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--border-highlight);
+        }
+
+        /* ==========================================================================
+           CABEÇALHO & BARRA SUPERIOR DE AÇÕES
+           ========================================================================== */
+        .app-header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background-color: rgba(13, 15, 16, 0.94);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid var(--border-metal);
+            padding: 12px 16px;
+        }
+
+        .header-container {
+            max-width: 1120px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .header-top-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .brand-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: var(--radius-md);
+            background: var(--accent-red-soft);
+            border: 1px solid var(--accent-red);
+            color: var(--accent-red);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: inset 0 0 12px rgba(220, 38, 38, 0.25);
+        }
+
+        .brand-title {
+            font-size: 1.15rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-primary);
+            line-height: 1.2;
+        }
+
+        .brand-title span {
+            color: var(--accent-red);
+        }
+
+        .brand-subtitle {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 2px;
+        }
+
+        .save-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background-color: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: var(--accent-emerald);
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .save-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--accent-emerald);
+        }
+
+        /* Barra de Botões de Arquivo e Utilidades */
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            min-height: 38px;
+            padding: 8px 13px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-metal);
+            background-color: var(--bg-elevated);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: 0.76rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            user-select: none;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            border-color: var(--border-highlight);
+            background-color: #252a30;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background-color: var(--accent-red);
+            border-color: var(--accent-red);
+            color: #ffffff;
+            box-shadow: 0 2px 10px rgba(220, 38, 38, 0.3);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-red-hover);
+            border-color: var(--accent-red-hover);
+        }
+
+        .btn-danger-outline {
+            color: #fca5a5;
+            border-color: rgba(220, 38, 38, 0.4);
+            background-color: rgba(220, 38, 38, 0.08);
+        }
+
+        .btn-danger-outline:hover {
+            background-color: rgba(220, 38, 38, 0.2);
+            border-color: var(--accent-red);
+            color: #ffffff;
+        }
+
+        .btn-icon-only {
+            padding: 8px 10px;
+        }
+
+        /* ==========================================================================
+           NAVEGAÇÃO POR ABAS (PÁGINA 01 / PÁGINA 02)
+           ========================================================================== */
+        .tabs-bar {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            background-color: var(--bg-input);
+            padding: 5px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-metal);
+        }
+
+        .tab-btn {
+            min-height: 40px;
+            padding: 8px 12px;
+            border: 1px solid transparent;
+            border-radius: var(--radius-sm);
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+
+        .tab-btn.active {
+            background-color: var(--accent-red);
+            color: #ffffff;
+            border-color: #ef4444;
+            box-shadow: 0 2px 10px rgba(220, 38, 38, 0.35);
+        }
+
+        /* ==========================================================================
+           LAYOUT PRINCIPAL & CARTÕES
+           ========================================================================== */
+        .main-content {
+            width: 100%;
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 20px 16px 36px;
+            flex-grow: 1;
+        }
+
+        .page-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            animation: fadeIn 0.22s ease;
+        }
+
+        .page-section.hidden {
+            display: none;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-metal);
+            border-radius: var(--radius-lg);
+            padding: 18px;
+            box-shadow: var(--shadow-card);
+            position: relative;
+        }
+
+        .card-tag {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background-color: var(--bg-elevated);
+            border-left: 1px solid var(--border-metal);
+            border-bottom: 1px solid var(--border-metal);
+            border-top-right-radius: var(--radius-lg);
+            border-bottom-left-radius: var(--radius-md);
+            padding: 4px 10px;
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .section-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-metal);
+        }
+
+        .section-title {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title.red { color: #f87171; }
+        .section-title.amber { color: #fbbf24; }
+        .section-title.blue { color: #60a5fa; }
+
+        .section-hint {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+        }
+
+        /* ==========================================================================
+           IDENTIFICAÇÃO & AVATAR DO SOBREVIVENTE
+           ========================================================================== */
+        .identity-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            margin-top: 8px;
+        }
+
+        @media (min-width: 768px) {
+            .identity-layout {
+                grid-template-columns: 170px 1fr;
+                align-items: start;
+            }
+        }
+
+        .avatar-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .avatar-box {
+            width: 148px;
+            height: 148px;
+            border-radius: var(--radius-lg);
+            background-color: var(--bg-input);
+            border: 2px dashed var(--border-highlight);
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: border-color 0.2s ease, transform 0.15s ease;
+        }
+
+        .avatar-box:hover {
+            border-color: var(--accent-red);
+        }
+
+        .avatar-box.has-image {
+            border-style: solid;
+            border-color: var(--border-metal);
+        }
+
+        .avatar-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .avatar-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 12px;
+            color: var(--text-secondary);
+            gap: 6px;
+        }
+
+        .avatar-placeholder span {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .avatar-actions {
+            display: flex;
+            gap: 6px;
+            width: 100%;
+            max-width: 160px;
+            justify-content: center;
+        }
+
+        .btn-mini {
+            min-height: 32px;
+            padding: 4px 9px;
+            font-size: 0.68rem;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            font-weight: 700;
+            border: 1px solid var(--border-metal);
+            background-color: var(--bg-elevated);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.15s ease;
+        }
+
+        .btn-mini:hover {
+            color: var(--text-primary);
+            border-color: var(--border-highlight);
+        }
+
+        .btn-mini.danger:hover {
+            color: #fca5a5;
+            border-color: var(--accent-red);
+            background-color: var(--accent-red-soft);
+        }
+
+        /* Grade de Inputs Pessoais */
+        .fields-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+        }
+
+        @media (min-width: 640px) {
+            .fields-grid {
+                grid-template-columns: repeat(12, 1fr);
+            }
+            .col-7 { grid-column: span 7; }
+            .col-5 { grid-column: span 5; }
+            .col-6 { grid-column: span 6; }
+            .col-3 { grid-column: span 3; }
+        }
+
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .field-label {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .input-control, .textarea-control {
+            width: 100%;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-metal);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            font-size: 0.95rem;
+            padding: 10px 12px;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .input-control:focus, .textarea-control:focus {
+            border-color: var(--accent-red);
+            box-shadow: 0 0 0 2px var(--accent-red-soft);
+        }
+
+        .input-control::placeholder, .textarea-control::placeholder {
+            color: var(--text-muted);
+        }
+
+        .textarea-control {
+            resize: vertical;
+            min-height: 120px;
+            line-height: 1.55;
+        }
+
+        /* ==========================================================================
+           MEDIDORES PRINCIPAIS NO TOPO (VITALIDADE, MENTAL, PONTOS NARRATIVOS)
+           ========================================================================== */
+        .meters-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 20px;
+            padding-top: 18px;
+            border-top: 1px solid var(--border-metal);
+        }
+
+        @media (min-width: 768px) {
+            .meters-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .meter-card {
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-metal);
+            border-radius: var(--radius-md);
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .meter-card.vitalidade { border-top: 3px solid var(--accent-red); }
+        .meter-card.mental { border-top: 3px solid var(--accent-amber); }
+        .meter-card.pn { border-top: 3px solid var(--accent-blue); }
+
+        .meter-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .meter-title {
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .meter-card.vitalidade .meter-title { color: #f87171; }
+        .meter-card.mental .meter-title { color: #fbbf24; }
+        .meter-card.pn .meter-title { color: #60a5fa; }
+
+        .stepper-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .step-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-metal);
+            background-color: var(--bg-elevated);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: 1.25rem;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+
+        .step-btn:hover {
+            background-color: #282d34;
+            border-color: var(--border-highlight);
+        }
+
+        .step-btn:active {
+            transform: scale(0.95);
+        }
+
+        .step-btn.minus:hover {
+            border-color: var(--accent-red);
+            color: #fca5a5;
+        }
+
+        .step-btn.plus:hover {
+            border-color: var(--accent-emerald);
+            color: #6ee7b7;
+        }
+
+        .meter-input {
+            width: 100%;
+            height: 44px;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-metal);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: 1.25rem;
+            font-weight: 800;
+            text-align: center;
+            outline: none;
+        }
+
+        .meter-input:focus {
+            border-color: var(--accent-red);
+        }
+
+        /* ==========================================================================
+           ATRIBUTOS PRINCIPAIS (INSTINTO, MENTE, CORPO)
+           ========================================================================== */
+        .attributes-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+        }
+
+        @media (min-width: 640px) {
+            .attributes-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .attr-card {
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-metal);
+            border-radius: var(--radius-md);
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            text-align: center;
+        }
+
+        .attr-name {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-primary);
+        }
+
+        .attr-desc {
+            font-size: 0.74rem;
+            color: var(--text-muted);
+            margin-top: -6px;
+        }
+
+        .attr-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            max-width: 190px;
+        }
+
+        /* ==========================================================================
+           GRADE DE CAMPOS NARRATIVOS & CONDIÇÕES
+           ========================================================================== */
+        .three-col-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        @media (min-width: 820px) {
+            .three-col-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .two-col-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        @media (min-width: 768px) {
+            .two-col-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* ==========================================================================
+           MOCHILA / ITENS DINÂMICOS (PÁGINA 02)
+           ========================================================================== */
+        .backpack-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .backpack-empty {
+            background-color: var(--bg-input);
+            border: 1px dashed var(--border-metal);
+            border-radius: var(--radius-md);
+            padding: 24px 16px;
+            text-align: center;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+        }
+
+        .item-row {
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-metal);
+            border-left: 3px solid var(--accent-red);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            align-items: start;
+            animation: fadeIn 0.18s ease;
+        }
+
+        @media (min-width: 720px) {
+            .item-row {
+                grid-template-columns: 240px 1fr 44px;
+                align-items: center;
+            }
+        }
+
+        .item-remove-btn {
+            width: 100%;
+            height: 42px;
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(220, 38, 38, 0.35);
+            background-color: rgba(220, 38, 38, 0.1);
+            color: #fca5a5;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+            font-weight: 700;
+            transition: all 0.15s ease;
+        }
+
+        .item-remove-btn:hover {
+            background-color: var(--accent-red);
+            border-color: var(--accent-red);
+            color: #ffffff;
+        }
+
+        @media (min-width: 720px) {
+            .item-remove-btn span {
+                display: none;
+            }
+        }
+
+        /* ==========================================================================
+           RODAPÉ DA PÁGINA & NOTIFICAÇÕES (TOAST / MODAL)
+           ========================================================================== */
+        .page-quote-bar {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-metal);
+            border-radius: var(--radius-lg);
+            padding: 14px 18px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+        }
+
+        .quote-text {
+            color: #f87171;
+            font-weight: 700;
+            font-style: italic;
+            letter-spacing: 0.04em;
+        }
+
+        .quote-page {
+            color: var(--text-secondary);
+            font-weight: 700;
+        }
+
+        .app-footer {
+            border-top: 1px solid var(--border-metal);
+            background-color: #090a0b;
+            padding: 14px 16px;
+            text-align: center;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--text-muted);
+        }
+
+        /* Toast Flutuante */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            left: 20px;
+            max-width: 400px;
+            margin-left: auto;
+            z-index: 100;
+            background-color: var(--bg-elevated);
+            border: 1px solid var(--accent-red);
+            color: var(--text-primary);
+            padding: 12px 16px;
+            border-radius: var(--radius-md);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.75);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            transform: translateY(120%);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast-icon {
+            color: var(--accent-red);
+            flex-shrink: 0;
+            display: flex;
+        }
+
+        /* Modal de Confirmação */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 110;
+            background-color: rgba(0, 0, 0, 0.82);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .modal-backdrop.hidden {
+            display: none;
+        }
+
+        .modal-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-highlight);
+            border-radius: var(--radius-lg);
+            max-width: 420px;
+            width: 100%;
+            padding: 24px;
+            text-align: center;
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.85);
+        }
+
+        .modal-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background-color: var(--accent-red-soft);
+            border: 1px solid var(--accent-red);
+            color: var(--accent-red);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 14px;
+        }
+
+        .modal-title {
+            font-size: 1.05rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 8px;
+        }
+
+        .modal-desc {
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        /* Oculta inputs numéricos nativos setinhas duplicadas */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Efeito visual de scanline -->
+    <div id="scanline-overlay" class="scanline-overlay"></div>
+
+    <!-- ======================================================================
+         CABEÇALHO & BARRA SUPERIOR DE AÇÕES
+         ====================================================================== -->
+    <header class="app-header">
+        <div class="header-container">
+            <div class="header-top-row">
+                <!-- Identidade Visual -->
+                <div class="brand-group">
+                    <div class="brand-icon" aria-hidden="true">
+                        <!-- Ícone Risco Biológico SVG -->
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="2.2"/>
+                            <path d="M12 3a5.5 5.5 0 0 0-4.76 8.25"/>
+                            <path d="M12 3a5.5 5.5 0 0 1 4.76 8.25"/>
+                            <path d="M4.2 16.5a5.5 5.5 0 0 0 9.53 0"/>
+                            <path d="M4.2 16.5a5.5 5.5 0 0 1 2.38-7.25"/>
+                            <path d="M19.8 16.5a5.5 5.5 0 0 1-9.53 0"/>
+                            <path d="M19.8 16.5a5.5 5.5 0 0 0-2.38-7.25"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="brand-title">INFECÇÃO <span>X</span> — FICHA DE SOBREVIVENTE</h1>
+                        <div class="brand-subtitle">
+                            <span id="file-label">REGISTRO PESSOAL</span>
+                            <span id="save-badge" class="save-badge">
+                                <span class="save-dot"></span>
+                                <span id="save-status-text">Salvo localmente</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Barra de Ferramentas de Arquivos & Offline -->
+                <div class="toolbar">
+                    <button type="button" class="btn btn-primary" onclick="saveFichaFile()" title="Salvar arquivo .json em uma pasta do dispositivo">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                            <polyline points="17 21 17 13 7 13 7 21"/>
+                            <polyline points="7 3 7 8 15 8"/>
+                        </svg>
+                        <span>Salvar Ficha</span>
+                    </button>
+
+                    <button type="button" class="btn" onclick="loadFichaFile()" title="Carregar arquivo .json salvo no dispositivo">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                        </svg>
+                        <span>Carregar Ficha</span>
+                    </button>
+
+                    <button type="button" class="btn" onclick="downloadOfflineApp()" title="Baixar este aplicativo HTML completo para usar 100% offline no celular">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        <span>Baixar App Offline (.html)</span>
+                    </button>
+
+                    <button type="button" class="btn btn-icon-only" onclick="toggleScanlines()" title="Alternar efeito visual de scanline">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                            <line x1="8" y1="21" x2="16" y2="21"/>
+                            <line x1="12" y1="17" x2="12" y2="21"/>
+                        </svg>
+                    </button>
+
+                    <button type="button" class="btn btn-danger-outline" onclick="openResetModal()" title="Apagar todos os dados da ficha">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                        <span>Limpar Ficha</span>
+                    </button>
+
+                    <!-- Input oculto de fallback para abrir JSON em qualquer navegador -->
+                    <input type="file" id="json-file-input" accept=".json,application/json" style="display: none;" onchange="handleFallbackJsonUpload(event)">
+                </div>
+            </div>
+
+            <!-- Navegação entre Página 01 e Página 02 -->
+            <nav class="tabs-bar" aria-label="Páginas da Ficha">
+                <button type="button" id="tab-btn-1" class="tab-btn active" onclick="switchPage(1)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="16" rx="2"/>
+                        <circle cx="9" cy="10" r="2"/>
+                        <path d="M15 8h2"/>
+                        <path d="M15 12h2"/>
+                        <path d="M7 16h10"/>
+                    </svg>
+                    <span>PÁGINA 01/02 — REGISTRO PESSOAL</span>
+                </button>
+                <button type="button" id="tab-btn-2" class="tab-btn" onclick="switchPage(2)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10z"/>
+                        <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
+                        <path d="M8 14h8"/>
+                    </svg>
+                    <span>PÁGINA 02/02 — CONDIÇÕES E RECURSOS</span>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- ======================================================================
+         CONTEÚDO PRINCIPAL
+         ====================================================================== -->
+    <main class="main-content">
+
+        <!-- ==================================================================
+             PÁGINA 01/02 — REGISTRO PESSOAL / ZONA DE CONTAMINAÇÃO
+             ================================================================== -->
+        <section id="page-1" class="page-section" aria-label="Página 01 - Registro Pessoal">
+
+            <!-- Bloco 1: Foto do Personagem, Identificação e Medidores Principais -->
+            <div class="card">
+                <div class="card-tag">ZONA DE CONTAMINAÇÃO // ARQUIVO 01</div>
+
+                <div class="identity-layout">
+                    <!-- Avatar / Foto do Personagem -->
+                    <div class="avatar-wrapper">
+                        <div id="avatar-box" class="avatar-box" onclick="triggerAvatarInput()" role="button" tabindex="0" aria-label="Selecionar foto do personagem">
+                            <img id="avatar-img" src="" alt="Foto do Sobrevivente" style="display: none;">
+                            <div id="avatar-placeholder" class="avatar-placeholder">
+                                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                    <circle cx="12" cy="13" r="4"/>
+                                </svg>
+                                <span>Adicionar Foto</span>
+                            </div>
+                        </div>
+                        <input type="file" id="avatar-file-input" accept="image/*" style="display: none;" onchange="handleAvatarSelected(event)">
+                        <div class="avatar-actions">
+                            <button type="button" class="btn-mini" onclick="triggerAvatarInput()">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="17 8 12 3 7 8"/>
+                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                </svg>
+                                <span>Trocar</span>
+                            </button>
+                            <button type="button" id="btn-remove-avatar" class="btn-mini danger" onclick="removeAvatar()" style="display: none;">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                                <span>Remover</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Campos de Identificação -->
+                    <div class="fields-grid">
+                        <div class="field-group col-7">
+                            <label class="field-label" for="field-nome">Nome</label>
+                            <input type="text" id="field-nome" class="input-control" placeholder="Nome completo do sobrevivente" oninput="handleFieldChange()">
+                        </div>
+
+                        <div class="field-group col-5">
+                            <label class="field-label" for="field-origem">Número de Origem</label>
+                            <input type="text" id="field-origem" class="input-control" style="font-family: var(--font-mono);" placeholder="Ex: #0412-X" oninput="handleFieldChange()">
+                        </div>
+
+                        <div class="field-group col-6">
+                            <label class="field-label" for="field-apelido">Apelido / Identificação</label>
+                            <input type="text" id="field-apelido" class="input-control" placeholder="Codinome ou como é chamado" oninput="handleFieldChange()">
+                        </div>
+
+                        <div class="field-group col-3">
+                            <label class="field-label" for="field-idade">Idade</label>
+                            <input type="text" id="field-idade" class="input-control" style="font-family: var(--font-mono);" placeholder="Ex: 27" oninput="handleFieldChange()">
+                        </div>
+
+                        <div class="field-group col-3">
+                            <label class="field-label" for="field-nascimento">Data de Nascimento</label>
+                            <input type="text" id="field-nascimento" class="input-control" style="font-family: var(--font-mono);" placeholder="DD/MM/AAAA" oninput="handleFieldChange()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Medidores Principais no Topo: VITALIDADE, MENTAL e PONTOS NARRATIVOS (PN) -->
+                <div class="meters-grid">
+                    <!-- Vitalidade -->
+                    <div class="meter-card vitalidade">
+                        <div class="meter-header">
+                            <span class="meter-title">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                                </svg>
+                                VITALIDADE
+                            </span>
+                        </div>
+                        <div class="stepper-row">
+                            <button type="button" class="step-btn minus" onclick="adjustNumberField('vitalidade', -1)" aria-label="Diminuir Vitalidade">-</button>
+                            <input type="number" id="field-vitalidade" class="meter-input" value="10" min="0" oninput="handleFieldChange()">
+                            <button type="button" class="step-btn plus" onclick="adjustNumberField('vitalidade', 1)" aria-label="Aumentar Vitalidade">+</button>
+                        </div>
+                    </div>
+
+                    <!-- Mental -->
+                    <div class="meter-card mental">
+                        <div class="meter-header">
+                            <span class="meter-title">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.54"/>
+                                    <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.54"/>
+                                </svg>
+                                MENTAL
+                            </span>
+                        </div>
+                        <div class="stepper-row">
+                            <button type="button" class="step-btn minus" onclick="adjustNumberField('mental', -1)" aria-label="Diminuir Mental">-</button>
+                            <input type="number" id="field-mental" class="meter-input" value="10" min="0" oninput="handleFieldChange()">
+                            <button type="button" class="step-btn plus" onclick="adjustNumberField('mental', 1)" aria-label="Aumentar Mental">+</button>
+                        </div>
+                    </div>
+
+                    <!-- Pontos Narrativos (PN) -->
+                    <div class="meter-card pn">
+                        <div class="meter-header">
+                            <span class="meter-title">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                                </svg>
+                                PONTOS NARRATIVOS (PN)
+                            </span>
+                        </div>
+                        <div class="stepper-row">
+                            <button type="button" class="step-btn minus" onclick="adjustNumberField('pn', -1)" aria-label="Diminuir Pontos Narrativos">-</button>
+                            <input type="number" id="field-pn" class="meter-input" value="0" min="0" oninput="handleFieldChange()">
+                            <button type="button" class="step-btn plus" onclick="adjustNumberField('pn', 1)" aria-label="Aumentar Pontos Narrativos">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bloco 2: Atributos Principais (Instinto, Mente, Corpo) -->
+            <div class="card">
+                <div class="section-header">
+                    <h2 class="section-title red">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="20" x2="18" y2="10"/>
+                            <line x1="12" y1="20" x2="12" y2="4"/>
+                            <line x1="6" y1="20" x2="6" y2="14"/>
+                        </svg>
+                        <span>Atributos Principais</span>
+                    </h2>
+                    <span class="section-hint">Distribuição inicial: 1, 2, 3 (Ex: Instinto 3, Mente 1, Corpo 2)</span>
+                </div>
+
+                <div class="attributes-grid">
+                    <!-- INSTINTO -->
+                    <div class="attr-card">
+                        <div class="attr-name">INSTINTO</div>
+                        <div class="attr-desc">Reflexos, percepção e sobrevivência</div>
+                        <div class="attr-controls">
+                            <button type="button" class="step-btn minus" onclick="adjustNumberField('instinto', -1)" aria-label="Diminuir Instinto">-</button>
+                            <input type="number" id="field-instinto" class="meter-input" value="1" min="0" oninput="handleFieldChange()">
+                            <button type="button" class="step-btn plus" onclick="adjustNumberField('instinto', 1)" aria-label="Aumentar Instinto">+</button>
+                        </div>
+                    </div>
+
+                    <!-- MENTE -->
+                    <div class="attr-card">
+                        <div class="attr-name">MENTE</div>
+                        <div class="attr-desc">Raciocínio, conhecimento e autocontrole</div>
+                        <div class="attr-controls">
+                            <button type="button" class="step-btn minus" onclick="adjustNumberField('mente', -1)" aria-label="Diminuir Mente">-</button>
+                            <input type="number" id="field-mente" class="meter-input" value="1" min="0" oninput="handleFieldChange()">
+                            <button type="button" class="step-btn plus" onclick="adjustNumberField('mente', 1)" aria-label="Aumentar Mente">+</button>
+                        </div>
+                    </div>
+
+                    <!-- CORPO -->
+                    <div class="attr-card">
+                        <div class="attr-name">CORPO</div>
+                        <div class="attr-desc">Força física, vigor e resistência</div>
+                        <div class="attr-controls">
+                            <button type="button" class="step-btn minus" onclick="adjustNumberField('corpo', -1)" aria-label="Diminuir Corpo">-</button>
+                            <input type="number" id="field-corpo" class="meter-input" value="1" min="0" oninput="handleFieldChange()">
+                            <button type="button" class="step-btn plus" onclick="adjustNumberField('corpo', 1)" aria-label="Aumentar Corpo">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bloco 3: Campos Narrativos (Traumas/Fobias, Vínculos, Personalidade) -->
+            <div class="three-col-grid">
+                <div class="card">
+                    <div class="section-header">
+                        <h2 class="section-title red">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                <circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/>
+                                <path d="M8 20v2h8v-2"/><path d="m12.5 17-.5-1-.5 1h1z"/>
+                                <path d="M16 20a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20"/>
+                            </svg>
+                            <span>Traumas / Fobias</span>
+                        </h2>
+                    </div>
+                    <textarea id="field-traumas" class="textarea-control" rows="6" placeholder="Medos profundos, gatilhos psicológicos e cicatrizes mentais..." oninput="handleFieldChange()"></textarea>
+                </div>
+
+                <div class="card">
+                    <div class="section-header">
+                        <h2 class="section-title amber">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                <circle cx="9" cy="7" r="4"/>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                            </svg>
+                            <span>Vínculos</span>
+                        </h2>
+                    </div>
+                    <textarea id="field-vinculos" class="textarea-control" rows="6" placeholder="Laços com outros sobreviventes, lealdades, dívidas ou promessas..." oninput="handleFieldChange()"></textarea>
+                </div>
+
+                <div class="card">
+                    <div class="section-header">
+                        <h2 class="section-title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                            <span>Personalidade</span>
+                        </h2>
+                    </div>
+                    <textarea id="field-personalidade" class="textarea-control" rows="6" placeholder="Temperamento, postura diante do caos, crenças e comportamento..." oninput="handleFieldChange()"></textarea>
+                </div>
+            </div>
+
+            <!-- Rodapé Página 01 -->
+            <div class="page-quote-bar">
+                <span class="quote-text">"NINGUÉM SOBREVIVE SOZINHO. CUIDE DO QUE AINDA RESTA."</span>
+                <span class="quote-page">PÁGINA 01/02</span>
+            </div>
+        </section>
+
+        <!-- ==================================================================
+             PÁGINA 02/02 — CONDIÇÕES E RECURSOS / ANOTAÇÕES DE CAMPO
+             ================================================================== -->
+        <section id="page-2" class="page-section hidden" aria-label="Página 02 - Condições e Recursos">
+
+            <!-- Bloco 1: Condições Físicas & Equipamentos -->
+            <div class="three-col-grid">
+                <div class="card">
+                    <div class="section-header">
+                        <h2 class="section-title red">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                <path d="M18 6 6 18"/><path d="m8 6 10 10"/>
+                            </svg>
+                            <span>Ferimentos Permanentes</span>
+                        </h2>
+                    </div>
+                    <textarea id="field-ferimentos" class="textarea-control" rows="5" placeholder="Sequelas físicas graves, fraturas mal curadas, cicatrizes permanentes..." oninput="handleFieldChange()"></textarea>
+                </div>
+
+                <div class="card">
+                    <div class="section-header">
+                        <h2 class="section-title amber">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                <circle cx="12" cy="12" r="5"/>
+                                <line x1="12" y1="1" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="23"/>
+                                <line x1="4.22" y1="4.22" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/>
+                                <line x1="1" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="23" y2="12"/>
+                                <line x1="4.22" y1="19.78" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.78" y2="4.22"/>
+                            </svg>
+                            <span>Doenças</span>
+                        </h2>
+                    </div>
+                    <textarea id="field-doencas" class="textarea-control" rows="5" placeholder="Sintomas, contaminações, febre, estágio da infecção..." oninput="handleFieldChange()"></textarea>
+                </div>
+
+                <div class="card">
+                    <div class="section-header">
+                        <h2 class="section-title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                            </svg>
+                            <span>Equipamentos</span>
+                        </h2>
+                    </div>
+                    <textarea id="field-equipamentos" class="textarea-control" rows="5" placeholder="Armas, vestimentas reforçadas, rádio, ferramentas em uso..." oninput="handleFieldChange()"></textarea>
+                </div>
+            </div>
+
+            <!-- Bloco 2: Seção Dinâmica MOCHILA / ITENS -->
+            <div class="card">
+                <div class="section-header">
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <h2 class="section-title red">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10z"/>
+                                <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
+                                <path d="M8 14h8"/>
+                            </svg>
+                            <span>MOCHILA / ITENS</span>
+                        </h2>
+                        <span id="backpack-count" class="section-hint">(0 itens)</span>
+                    </div>
+
+                    <button type="button" class="btn btn-primary" onclick="addBackpackItem()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"/>
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                        <span>+ Adicionar Item</span>
+                    </button>
+                </div>
+
+                <div id="backpack-list" class="backpack-list">
+                    <!-- Os itens dinâmicos da mochila são renderizados aqui via JS -->
+                </div>
+            </div>
+
+            <!-- Bloco 3: Habilidades Narrativas & Atos de Insanidade -->
+            <div class="two-col-grid">
+                <div class="card">
+                    <div class="section-header">
+                        <h2 class="section-title blue">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                            </svg>
+                            <span>Habilidades Narrativas</span>
+                        </h2>
+                    </div>
+                    <textarea id="field-habilidades" class="textarea-control" rows="6" placeholder="Especialidades, talentos de sobrevivência, vantagens adquiridas..." oninput="handleFieldChange()"></textarea>
+                </div>
+
+                <div class="card">
+                    <div class="section-header">
+                        <h2 class="section-title red">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                <line x1="12" y1="9" x2="12" y2="13"/>
+                                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                            </svg>
+                            <span>Atos de Insanidade</span>
+                        </h2>
+                    </div>
+                    <textarea id="field-insanidade" class="textarea-control" rows="6" placeholder="Surtos, delírios, decisões extremas tomadas sob pressão mental..." oninput="handleFieldChange()"></textarea>
+                </div>
+            </div>
+
+            <!-- Rodapé Página 02 -->
+            <div class="page-quote-bar">
+                <span class="quote-text">"CADA CICATRIZ CONTA UMA HISTÓRIA. NEM TODAS TERMINAM BEM."</span>
+                <span class="quote-page">PÁGINA 02/02</span>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ======================================================================
+         RODAPÉ GERAL
+         ====================================================================== -->
+    <footer class="app-footer">
+        INFECÇÃO X RPG &bull; Ficha Interativa 100% Offline &bull; Salvamento Automático Ativo
+    </footer>
+
+    <!-- ======================================================================
+         NOTIFICAÇÃO TOAST
+         ====================================================================== -->
+    <div id="toast" class="toast" role="status" aria-live="polite">
+        <span class="toast-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+        </span>
+        <span id="toast-msg">Ação concluída.</span>
+    </div>
+
+    <!-- ======================================================================
+         MODAL DE CONFIRMAÇÃO PARA LIMPAR FICHA
+         ====================================================================== -->
+    <div id="reset-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-card">
+            <div class="modal-icon">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            </div>
+            <h3 id="modal-title" class="modal-title">Limpar Toda a Ficha?</h3>
+            <p class="modal-desc">Todos os campos, foto do personagem, atributos e itens da mochila serão apagados permanentemente deste navegador.</p>
+            <div class="modal-actions">
+                <button type="button" class="btn" onclick="closeResetModal()">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="confirmResetFicha()">Sim, Limpar Tudo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================================
+         LÓGICA COMPLETA EM JAVASCRIPT PURO (ESTADO, AVATAR, MOCHILA & ARQUIVOS)
+         ====================================================================== -->
+    <script>
+        const STORAGE_KEY = 'infeccao_x_sobrevivente_v2';
+
+        // Estado global da ficha
+        function createDefaultState() {
+            return {
+                version: 2,
+                avatar: '',
+                nome: '',
+                origem: '',
+                idade: '',
+                nascimento: '',
+                apelido: '',
+                vitalidade: 10,
+                mental: 10,
+                pn: 0,
+                instinto: 1,
+                mente: 1,
+                corpo: 1,
+                traumas: '',
+                vinculos: '',
+                personalidade: '',
+                ferimentos: '',
+                doencas: '',
+                equipamentos: '',
+                mochila: [],
+                habilidades: '',
+                insanidade: ''
+            };
+        }
+
+        let fichaState = createDefaultState();
+        let toastTimer = null;
+        let saveBadgeTimer = null;
+
+        // Mapeamento dos campos simples (IDs -> chaves no estado)
+        const TEXT_FIELDS = [
+            'nome', 'origem', 'idade', 'nascimento', 'apelido',
+            'traumas', 'vinculos', 'personalidade',
+            'ferimentos', 'doencas', 'equipamentos',
+            'habilidades', 'insanidade'
+        ];
+
+        const NUMBER_FIELDS = [
+            'vitalidade', 'mental', 'pn',
+            'instinto', 'mente', 'corpo'
+        ];
+
+        // ======================================================================
+        // NAVEGAÇÃO ENTRE ABAS
+        // ======================================================================
+        function switchPage(pageNumber) {
+            const page1 = document.getElementById('page-1');
+            const page2 = document.getElementById('page-2');
+            const btn1 = document.getElementById('tab-btn-1');
+            const btn2 = document.getElementById('tab-btn-2');
+
+            if (pageNumber === 1) {
+                page1.classList.remove('hidden');
+                page2.classList.add('hidden');
+                btn1.classList.add('active');
+                btn2.classList.remove('active');
+            } else {
+                page2.classList.remove('hidden');
+                page1.classList.add('hidden');
+                btn2.classList.add('active');
+                btn1.classList.remove('active');
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function toggleScanlines() {
+            const overlay = document.getElementById('scanline-overlay');
+            overlay.classList.toggle('hidden-scanline');
+            const isHidden = overlay.classList.contains('hidden-scanline');
+            showToast(isHidden ? 'Efeito scanline desativado.' : 'Efeito scanline ativado.');
+        }
+
+        // ======================================================================
+        // CONTROLES NUMÉRICOS (+ / -) E SINCRONIZAÇÃO DE ESTADO
+        // ======================================================================
+        function adjustNumberField(fieldName, delta) {
+            const input = document.getElementById('field-' + fieldName);
+            if (!input) return;
+            const current = parseInt(input.value, 10) || 0;
+            const next = Math.max(0, current + delta);
+            input.value = next;
+            fichaState[fieldName] = next;
+            saveToLocalStorage();
+        }
+
+        function handleFieldChange() {
+            TEXT_FIELDS.forEach(key => {
+                const el = document.getElementById('field-' + key);
+                if (el) fichaState[key] = el.value;
+            });
+
+            NUMBER_FIELDS.forEach(key => {
+                const el = document.getElementById('field-' + key);
+                if (el) {
+                    const parsed = parseInt(el.value, 10);
+                    fichaState[key] = isNaN(parsed) ? 0 : Math.max(0, parsed);
+                }
+            });
+
+            saveToLocalStorage();
+        }
+
+        function renderStateToDOM() {
+            // Textos e Textareas
+            TEXT_FIELDS.forEach(key => {
+                const el = document.getElementById('field-' + key);
+                if (el) el.value = fichaState[key] || '';
+            });
+
+            // Números (Medidores e Atributos)
+            NUMBER_FIELDS.forEach(key => {
+                const el = document.getElementById('field-' + key);
+                if (el) el.value = (fichaState[key] !== undefined && fichaState[key] !== null) ? fichaState[key] : 0;
+            });
+
+            // Avatar
+            updateAvatarUI();
+
+            // Mochila
+            renderBackpack();
+        }
+
+        // ======================================================================
+        // FOTO DO PERSONAGEM (COMPRIMIDA VIA CANVAS HTML5)
+        // ======================================================================
+        function triggerAvatarInput() {
+            document.getElementById('avatar-file-input').click();
+        }
+
+        function handleAvatarSelected(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    // Redimensionar para no máximo 320x320 mantendo proporção
+                    const MAX_SIZE = 320;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_SIZE) {
+                            height = Math.round(height * (MAX_SIZE / width));
+                            width = MAX_SIZE;
+                        }
+                    } else {
+                        if (height > MAX_SIZE) {
+                            width = Math.round(width * (MAX_SIZE / height));
+                            height = MAX_SIZE;
+                        }
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Exportar como JPEG leve em Base64
+                    fichaState.avatar = canvas.toDataURL('image/jpeg', 0.8);
+                    updateAvatarUI();
+                    saveToLocalStorage();
+                    showToast('Foto do sobrevivente atualizada!');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+            event.target.value = '';
+        }
+
+        function removeAvatar() {
+            fichaState.avatar = '';
+            updateAvatarUI();
+            saveToLocalStorage();
+            showToast('Foto removida.');
+        }
+
+        function updateAvatarUI() {
+            const imgEl = document.getElementById('avatar-img');
+            const placeholderEl = document.getElementById('avatar-placeholder');
+            const boxEl = document.getElementById('avatar-box');
+            const removeBtn = document.getElementById('btn-remove-avatar');
+
+            if (fichaState.avatar) {
+                imgEl.src = fichaState.avatar;
+                imgEl.style.display = 'block';
+                placeholderEl.style.display = 'none';
+                boxEl.classList.add('has-image');
+                removeBtn.style.display = 'inline-flex';
+            } else {
+                imgEl.src = '';
+                imgEl.style.display = 'none';
+                placeholderEl.style.display = 'flex';
+                boxEl.classList.remove('has-image');
+                removeBtn.style.display = 'none';
+            }
+        }
+
+        // ======================================================================
+        // MOCHILA / ITENS DINÂMICOS
+        // ======================================================================
+        function generateItemId() {
+            return 'item_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+        }
+
+        function addBackpackItem() {
+            if (!Array.isArray(fichaState.mochila)) {
+                fichaState.mochila = [];
+            }
+            fichaState.mochila.push({
+                id: generateItemId(),
+                nome: '',
+                descricao: ''
+            });
+            renderBackpack();
+            saveToLocalStorage();
+
+            // Focar no campo de nome do item recém-criado
+            const list = document.getElementById('backpack-list');
+            const lastInput = list.querySelector('.item-row:last-child input');
+            if (lastInput) lastInput.focus();
+        }
+
+        function updateBackpackItem(id, key, value) {
+            const item = fichaState.mochila.find(it => it.id === id);
+            if (item) {
+                item[key] = value;
+                saveToLocalStorage();
+            }
+        }
+
+        function removeBackpackItem(id) {
+            fichaState.mochila = fichaState.mochila.filter(it => it.id !== id);
+            renderBackpack();
+            saveToLocalStorage();
+            showToast('Item removido da mochila.');
+        }
+
+        function renderBackpack() {
+            const listEl = document.getElementById('backpack-list');
+            const countEl = document.getElementById('backpack-count');
+            const items = Array.isArray(fichaState.mochila) ? fichaState.mochila : [];
+
+            countEl.textContent = items.length === 1 ? '(1 item)' : `(${items.length} itens)`;
+            listEl.innerHTML = '';
+
+            if (items.length === 0) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'backpack-empty';
+                emptyDiv.textContent = 'Mochila vazia. Toque em "+ Adicionar Item" para registrar suprimentos e recursos.';
+                listEl.appendChild(emptyDiv);
+                return;
+            }
+
+            items.forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'item-row';
+
+                // Campo Nome do Item
+                const nameInput = document.createElement('input');
+                nameInput.type = 'text';
+                nameInput.className = 'input-control';
+                nameInput.placeholder = 'Nome do item (ex: Kit Médico)';
+                nameInput.value = item.nome || '';
+                nameInput.setAttribute('aria-label', 'Nome do Item');
+                nameInput.addEventListener('input', (e) => updateBackpackItem(item.id, 'nome', e.target.value));
+
+                // Campo Descrição / O que faz
+                const descInput = document.createElement('input');
+                descInput.type = 'text';
+                descInput.className = 'input-control';
+                descInput.placeholder = 'O que o item faz / quantidade / detalhes...';
+                descInput.value = item.descricao || '';
+                descInput.setAttribute('aria-label', 'Descrição do Item');
+                descInput.addEventListener('input', (e) => updateBackpackItem(item.id, 'descricao', e.target.value));
+
+                // Botão Remover Item
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.className = 'item-remove-btn';
+                delBtn.title = 'Remover item';
+                delBtn.setAttribute('aria-label', 'Remover item');
+                delBtn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                    <span>Remover Item</span>
+                `;
+                delBtn.addEventListener('click', () => removeBackpackItem(item.id));
+
+                row.appendChild(nameInput);
+                row.appendChild(descInput);
+                row.appendChild(delBtn);
+                listEl.appendChild(row);
+            });
+        }
+
+        // ======================================================================
+        // PERSISTÊNCIA LOCAL (localStorage)
+        // ======================================================================
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(fichaState));
+                const statusEl = document.getElementById('save-status-text');
+                statusEl.textContent = 'Salvando...';
+                clearTimeout(saveBadgeTimer);
+                saveBadgeTimer = setTimeout(() => {
+                    statusEl.textContent = 'Salvo localmente';
+                }, 400);
+            } catch (err) {
+                console.error('Erro ao salvar no localStorage:', err);
+                showToast('Aviso: armazenamento local cheio (tente uma foto menor).');
+            }
+        }
+
+        function loadFromLocalStorage() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    fichaState = normalizeImportedData(parsed);
+                }
+            } catch (err) {
+                console.error('Erro ao ler dados locais:', err);
+            }
+            renderStateToDOM();
+        }
+
+        // Normaliza dados importados (incluindo compatibilidade com fichas antigas)
+        function normalizeImportedData(data) {
+            const base = createDefaultState();
+            if (!data || typeof data !== 'object') return base;
+
+            // Suporte direto ao formato v2
+            TEXT_FIELDS.forEach(key => {
+                if (typeof data[key] === 'string') base[key] = data[key];
+            });
+            NUMBER_FIELDS.forEach(key => {
+                if (data[key] !== undefined && !isNaN(parseInt(data[key], 10))) {
+                    base[key] = Math.max(0, parseInt(data[key], 10));
+                }
+            });
+            if (typeof data.avatar === 'string') base.avatar = data.avatar;
+
+            if (Array.isArray(data.mochila)) {
+                base.mochila = data.mochila.map(item => ({
+                    id: item.id || generateItemId(),
+                    nome: String(item.nome || ''),
+                    descricao: String(item.descricao || '')
+                }));
+            }
+
+            // Compatibilidade com formato legado v1 (p1-nome, attr-instinto, p2-itens, etc.)
+            if (data['p1-nome'] !== undefined) base.nome = String(data['p1-nome'] || '');
+            if (data['p1-origem'] !== undefined) base.origem = String(data['p1-origem'] || '');
+            if (data['p1-idade'] !== undefined) base.idade = String(data['p1-idade'] || '');
+            if (data['p1-nascimento'] !== undefined) base.nascimento = String(data['p1-nascimento'] || '');
+            if (data['p1-apelido'] !== undefined) base.apelido = String(data['p1-apelido'] || '');
+            if (data['p1-vitalidade'] !== undefined) base.vitalidade = parseInt(String(data['p1-vitalidade']).split('/')[0], 10) || 10;
+            if (data['p1-mental'] !== undefined) base.mental = parseInt(String(data['p1-mental']).split('/')[0], 10) || 10;
+            if (data['p1-pn'] !== undefined) base.pn = parseInt(data['p1-pn'], 10) || 0;
+            if (data['attr-instinto'] !== undefined) base.instinto = parseInt(data['attr-instinto'], 10) || 1;
+            if (data['attr-mente'] !== undefined) base.mente = parseInt(data['attr-mente'], 10) || 1;
+            if (data['attr-corpo'] !== undefined) base.corpo = parseInt(data['attr-corpo'], 10) || 1;
+            if (data['p1-traumas'] !== undefined) base.traumas = String(data['p1-traumas'] || '');
+            if (data['p1-vinculos'] !== undefined) base.vinculos = String(data['p1-vinculos'] || '');
+            if (data['p1-personalidade'] !== undefined) base.personalidade = String(data['p1-personalidade'] || '');
+            if (data['p2-ferimentos'] !== undefined) base.ferimentos = String(data['p2-ferimentos'] || '');
+            if (data['p2-doencas'] !== undefined) base.doencas = String(data['p2-doencas'] || '');
+            if (data['p2-equipamentos'] !== undefined) base.equipamentos = String(data['p2-equipamentos'] || '');
+            if (data['p2-habilidades'] !== undefined) base.habilidades = String(data['p2-habilidades'] || '');
+            if (data['p2-insanidade'] !== undefined) base.insanidade = String(data['p2-insanidade'] || '');
+            if (typeof data['p2-itens'] === 'string' && data['p2-itens'].trim() && base.mochila.length === 0) {
+                base.mochila.push({
+                    id: generateItemId(),
+                    nome: 'Itens Importados',
+                    descricao: data['p2-itens'].trim()
+                });
+            }
+
+            return base;
+        }
+
+        // ======================================================================
+        // SALVAR & CARREGAR FICHA (.JSON) EM PASTA DO CELULAR / COMPUTADOR
+        // ======================================================================
+        function getSanitizedFilename() {
+            const rawName = (fichaState.nome || fichaState.apelido || 'sobrevivente').trim().toLowerCase();
+            const cleanName = rawName
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9_-]+/g, '_')
+                .replace(/^_+|_+$/g, '') || 'sobrevivente';
+            return `${cleanName}_infeccao_x.json`;
+        }
+
+        async function saveFichaFile() {
+            handleFieldChange();
+            const jsonContent = JSON.stringify(fichaState, null, 2);
+            const suggestedName = getSanitizedFilename();
+
+            // 1. Tenta File System Access API (permite escolher/criar pasta no Chrome Android/PC)
+            if (typeof window.showSaveFilePicker === 'function') {
+                try {
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: suggestedName,
+                        types: [{
+                            description: 'Ficha de Personagem Infecção X (.json)',
+                            accept: { 'application/json': ['.json'] }
+                        }]
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(jsonContent);
+                    await writable.close();
+
+                    document.getElementById('file-label').textContent = handle.name;
+                    showToast(`Ficha salva na pasta: ${handle.name}`);
+                    return;
+                } catch (err) {
+                    // Se o usuário apenas cancelou a janela, não faz fallback
+                    if (err && err.name === 'AbortError') return;
+                    // Em ambientes restritos (iFrames/Safari/Firefox), segue para o fallback abaixo
+                }
+            }
+
+            // 2. Fallback Universal via Blob + <a download>
+            const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = suggestedName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+            document.getElementById('file-label').textContent = suggestedName;
+            showToast(`Arquivo baixado: ${suggestedName}`);
+        }
+
+        async function loadFichaFile() {
+            // 1. Tenta File System Access API
+            if (typeof window.showOpenFilePicker === 'function') {
+                try {
+                    const [handle] = await window.showOpenFilePicker({
+                        multiple: false,
+                        types: [{
+                            description: 'Ficha de Personagem Infecção X (.json)',
+                            accept: { 'application/json': ['.json'] }
+                        }]
+                    });
+                    const file = await handle.getFile();
+                    const text = await file.text();
+                    applyLoadedJson(text, file.name);
+                    return;
+                } catch (err) {
+                    if (err && err.name === 'AbortError') return;
+                }
+            }
+
+            // 2. Fallback Universal via <input type="file">
+            document.getElementById('json-file-input').click();
+        }
+
+        function handleFallbackJsonUpload(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                applyLoadedJson(e.target.result, file.name);
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function applyLoadedJson(jsonText, fileName) {
+            try {
+                const parsed = JSON.parse(jsonText);
+                fichaState = normalizeImportedData(parsed);
+                renderStateToDOM();
+                saveToLocalStorage();
+                document.getElementById('file-label').textContent = fileName || 'FICHA CARREGADA';
+                showToast('Ficha carregada com sucesso!');
+            } catch (err) {
+                console.error('JSON inválido:', err);
+                showToast('Erro: arquivo .json inválido ou corrompido.');
+            }
+        }
+
+        // ======================================================================
+        // BAIXAR APLICATIVO COMPLETO OFFLINE (.HTML)
+        // ======================================================================
+        function downloadOfflineApp() {
+            handleFieldChange();
+            // Clona o documento atual para gerar um arquivo HTML limpo e autocontido
+            const clone = document.documentElement.cloneNode(true);
+
+            // Garante que toast e modal não fiquem abertos no HTML exportado
+            const clonedToast = clone.querySelector('#toast');
+            if (clonedToast) clonedToast.classList.remove('show');
+            const clonedModal = clone.querySelector('#reset-modal');
+            if (clonedModal) clonedModal.classList.add('hidden');
+
+            const fullHtml = '<!DOCTYPE html>\n' + clone.outerHTML;
+            const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'ficha_infeccao_x_offline.html';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+            showToast('App Offline baixado! Abra o arquivo .html no celular sem internet.');
+        }
+
+        // ======================================================================
+        // LIMPAR FICHA (MODAL CUSTOMIZADO) & TOAST
+        // ======================================================================
+        function openResetModal() {
+            document.getElementById('reset-modal').classList.remove('hidden');
+        }
+
+        function closeResetModal() {
+            document.getElementById('reset-modal').classList.add('hidden');
+        }
+
+        function confirmResetFicha() {
+            localStorage.removeItem(STORAGE_KEY);
+            fichaState = createDefaultState();
+            renderStateToDOM();
+            document.getElementById('file-label').textContent = 'REGISTRO PESSOAL';
+            closeResetModal();
+            showToast('Ficha limpa com sucesso.');
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const msgEl = document.getElementById('toast-msg');
+            msgEl.textContent = message;
+            toast.classList.add('show');
+
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3200);
+        }
+
+        // Inicialização ao carregar a página
+        window.addEventListener('DOMContentLoaded', () => {
+            loadFromLocalStorage();
+        });
+    </script>
+</body>
+</html>
