@@ -1,10 +1,11 @@
 // ==========================================================================
-// ESCUDO DO MESTRE — MAPAS, PINOS, ENVIO DE ITENS, MÚSICA LOCAL & NOTAS
+// ESCUDO DO MESTRE — MAPAS, PINOS COLORIDOS, PRESENÇA ONLINE, MÚSICA & NOTAS
 // ==========================================================================
 let masterCampaignRef = null;
 let currentActiveMapId = null;
 let currentActiveAudioId = null;
-let cachedCampaignPlayers = {};
+let cachedAllCampaignPlayers = {};
+let cachedOnlinePlayerIds = {};
 let noteSaveTimers = {};
 
 function initMasterWorkspace(campaignId) {
@@ -74,17 +75,38 @@ function initMasterWorkspace(campaignId) {
         renderMasterAudioList(snap.val() || {});
     });
 
-    // 7. Monitora jogadores conectados + atualiza seletor de envio direto de itens
+    // 7. Monitora fichas dos jogadores E presença online em tempo real
     masterCampaignRef.child('players').on('value', (snap) => {
-        cachedCampaignPlayers = snap.val() || {};
-        renderPlayersMonitor(cachedCampaignPlayers);
-        updateGiftPlayerSelect(cachedCampaignPlayers);
+        cachedAllCampaignPlayers = snap.val() || {};
+        refreshOnlinePlayersViews();
+    });
+
+    masterCampaignRef.child('onlinePlayers').on('value', (snap) => {
+        cachedOnlinePlayerIds = snap.val() || {};
+        refreshOnlinePlayersViews();
     });
 
     // 8. Escuta Blocos de Notas Secretos
     masterCampaignRef.child('masterSecretNotes').on('value', (snap) => {
         renderMasterSecretNotes(snap.val());
     });
+}
+
+function getActiveOnlinePlayersMap() {
+    const onlineOnly = {};
+    Object.keys(cachedOnlinePlayerIds).forEach(playerId => {
+        if (cachedOnlinePlayerIds[playerId] && cachedOnlinePlayerIds[playerId].online) {
+            onlineOnly[playerId] = cachedAllCampaignPlayers[playerId] || { nome: playerId };
+        }
+    });
+    return onlineOnly;
+}
+
+function refreshOnlinePlayersViews() {
+    const onlineMap = getActiveOnlinePlayersMap();
+    renderPlayersMonitor(onlineMap);
+    updateGiftPlayerSelect(onlineMap);
+    updatePinPlayerSelect(onlineMap);
 }
 
 function detachMasterListeners() {
@@ -97,6 +119,7 @@ function detachMasterListeners() {
         masterCampaignRef.child('activeAudio').off();
         masterCampaignRef.child('audioLibrary').off();
         masterCampaignRef.child('players').off();
+        masterCampaignRef.child('onlinePlayers').off();
         masterCampaignRef.child('masterSecretNotes').off();
     }
 }
@@ -122,7 +145,7 @@ function uploadMasterAudioFile() {
         return;
     }
 
-    const maxBytes = 8 * 1024 * 1024; // 8 MB (limite seguro para Firebase RTDB)
+    const maxBytes = 8 * 1024 * 1024;
     if (file.size > maxBytes) {
         showToast('Arquivo muito grande (máx. 8 MB). Use um MP3 comprimido ou mais curto.');
         return;
@@ -223,7 +246,7 @@ function renderMasterAudioList(audioObj) {
 }
 
 // ==========================================================================
-// CONTROLE DE PINOS NO MAPA (MESTRE)
+// CONTROLE DE PINOS COLORIDOS NO MAPA (CRIATURAS E JOGADORES)
 // ==========================================================================
 function addCustomMapPin() {
     if (!masterCampaignRef) return;
@@ -249,29 +272,49 @@ function addCustomMapPin() {
     });
 }
 
-function syncPlayersToPins() {
-    if (!masterCampaignRef) return;
-    const entries = Object.entries(cachedCampaignPlayers);
+function updatePinPlayerSelect(onlinePlayersObj) {
+    const select = document.getElementById('pin-target-player');
+    if (!select) return;
+    const prev = select.value;
+    const entries = Object.entries(onlinePlayersObj);
+
     if (entries.length === 0) {
-        showToast('Nenhum jogador conectado na campanha ainda.');
+        select.innerHTML = '<option value="">Nenhum jogador online no momento</option>';
         return;
     }
 
-    const updates = {};
-    entries.forEach(([playerId, p], idx) => {
-        const pinId = `player_pin_${playerId}`;
+    select.innerHTML = entries.map(([playerId, p]) => {
         const label = p.apelido || p.nome || playerId;
-        updates[`mapPins/${pinId}`] = {
-            id: pinId,
-            label: label,
-            color: '#3b82f6',
-            x: Math.min(85, 25 + idx * 12),
-            y: 50
-        };
-    });
+        return `<option value="${escapeHtml(playerId)}">${escapeHtml(label)} (${escapeHtml(playerId)})</option>`;
+    }).join('');
 
-    masterCampaignRef.update(updates).then(() => {
-        showToast('Pinos dos sobreviventes adicionados ao mapa!');
+    if (prev && onlinePlayersObj[prev]) {
+        select.value = prev;
+    }
+}
+
+function addSinglePlayerPin() {
+    if (!masterCampaignRef) return;
+    const playerId = document.getElementById('pin-target-player').value;
+    const chosenColor = document.getElementById('pin-player-color').value || '#3b82f6';
+
+    if (!playerId) {
+        showToast('Selecione um jogador online primeiro.');
+        return;
+    }
+
+    const pData = cachedAllCampaignPlayers[playerId] || {};
+    const label = pData.apelido || pData.nome || playerId;
+    const pinId = `player_pin_${playerId}`;
+
+    masterCampaignRef.child(`mapPins/${pinId}`).set({
+        id: pinId,
+        label: label,
+        color: chosenColor,
+        x: 50,
+        y: 50
+    }).then(() => {
+        showToast(`Token de "${label}" adicionado ao mapa com a cor escolhida!`);
     });
 }
 
@@ -283,16 +326,16 @@ function clearAllMapPins() {
 }
 
 // ==========================================================================
-// ENVIO DIRETO DE ITEM PARA A MOCHILA DE UM JOGADOR ESPECÍFICO
+// ENVIO DIRETO DE ITEM PARA A MOCHILA DE UM JOGADOR ONLINE
 // ==========================================================================
-function updateGiftPlayerSelect(playersObj) {
+function updateGiftPlayerSelect(onlinePlayersObj) {
     const select = document.getElementById('gift-target-player');
     if (!select) return;
     const prevValue = select.value;
-    const entries = Object.entries(playersObj);
+    const entries = Object.entries(onlinePlayersObj);
 
     if (entries.length === 0) {
-        select.innerHTML = '<option value="">Nenhum jogador na mesa ainda</option>';
+        select.innerHTML = '<option value="">Nenhum jogador online no momento</option>';
         return;
     }
 
@@ -301,7 +344,7 @@ function updateGiftPlayerSelect(playersObj) {
         return `<option value="${escapeHtml(playerId)}">${escapeHtml(displayName)} (${escapeHtml(playerId)})</option>`;
     }).join('');
 
-    if (prevValue && playersObj[prevValue]) {
+    if (prevValue && onlinePlayersObj[prevValue]) {
         select.value = prevValue;
     }
 }
@@ -544,7 +587,7 @@ function createMasterCard(collectionName) {
 
     const file = fileEl.files && fileEl.files[0];
     if (file) {
-        compressImageFile(file, 480, 0.8, saveRecord);
+        compressImageFile(file, 720, 0.84, saveRecord);
     } else {
         saveRecord('');
     }
@@ -580,7 +623,7 @@ function renderMasterCardsList(containerId, collectionName, dataObj, emptyText) 
         const card = document.createElement('div');
         card.className = `entity-card ${isVis ? 'is-visible' : 'is-hidden'}`;
         card.innerHTML = `
-            ${entry.imageData ? `<img src="${entry.imageData}" alt="${escapeHtml(entry.name)}" class="entity-thumb">` : ''}
+            ${entry.imageData ? `<img src="${entry.imageData}" alt="${escapeHtml(entry.name)}" class="entity-thumb" style="cursor: pointer;" title="Clique para ampliar">` : ''}
             <div class="entity-info">
                 <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
                     <span class="entity-title">${escapeHtml(entry.name)}</span>
@@ -592,24 +635,30 @@ function renderMasterCardsList(containerId, collectionName, dataObj, emptyText) 
                     <button type="button" class="btn-mini ${isVis ? '' : 'btn-success'}" onclick="toggleCardVisibility('${collectionName}', '${entry.id}', ${isVis})">
                         ${isVis ? 'Ocultar' : 'Mostrar aos Jogadores'}
                     </button>
+                    <button type="button" class="btn-mini" data-action="preview">Ampliar</button>
                     <button type="button" class="btn-mini danger" onclick="deleteMasterCard('${collectionName}', '${entry.id}')">Excluir</button>
                 </div>
             </div>
         `;
+        const previewBtn = card.querySelector('[data-action="preview"]');
+        if (previewBtn) previewBtn.addEventListener('click', () => openEntryLightbox(entry));
+        const thumbImg = card.querySelector('.entity-thumb');
+        if (thumbImg) thumbImg.addEventListener('click', () => openEntryLightbox(entry));
+
         container.appendChild(card);
     });
 }
 
 // ==========================================================================
-// MONITOR EM TEMPO REAL DOS SOBREVIVENTES DA MESA
+// MONITOR EM TEMPO REAL DOS SOBREVIVENTES ONLINE DA MESA
 // ==========================================================================
-function renderPlayersMonitor(playersObj) {
+function renderPlayersMonitor(onlinePlayersObj) {
     const container = document.getElementById('master-players-overview');
     if (!container) return;
-    const entries = Object.entries(playersObj);
+    const entries = Object.entries(onlinePlayersObj);
 
     if (entries.length === 0) {
-        container.innerHTML = '<div class="empty-state-box">Nenhum jogador conectado nesta campanha ainda.</div>';
+        container.innerHTML = '<div class="empty-state-box">Nenhum jogador online nesta campanha no momento.</div>';
         return;
     }
 

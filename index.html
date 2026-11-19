@@ -11,7 +11,7 @@
     <div id="scanline-overlay" class="scanline-overlay"></div>
 
     <!-- ======================================================================
-         TELA 0: PORTAL DE ACESSO (JOGADOR OU MESTRE)
+         TELA 0: PORTAL DE ACESSO (JOGADOR, MEUS PERSONAGENS OU MESTRE)
          ====================================================================== -->
     <section id="portal-screen" class="portal-wrapper">
         <div class="portal-card">
@@ -29,30 +29,52 @@
                 </div>
                 <div>
                     <h1 class="brand-title">INFECÇÃO <span>X</span></h1>
-                    <p class="portal-sub">TERMINAL DE CONEXÃO DA MESA // V4</p>
+                    <p class="portal-sub">TERMINAL DE CONEXÃO DA MESA // V5</p>
                 </div>
             </div>
 
-            <div class="role-selector" role="group" aria-label="Escolha seu perfil">
+            <div class="role-selector three-roles" role="group" aria-label="Escolha seu modo">
                 <button type="button" id="role-btn-player" class="role-option active" onclick="selectPortalRole('player')">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                         <circle cx="12" cy="7" r="4"/>
                     </svg>
-                    <strong>SOU JOGADOR</strong>
-                    <span>Ficha pessoal + Visão e Som da mesa</span>
+                    <strong>ENTRAR EM MESA</strong>
+                    <span>Jogar em campanha</span>
+                </button>
+
+                <button type="button" id="role-btn-roster" class="role-option" onclick="selectPortalRole('roster')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                    <strong>PERSONAGENS</strong>
+                    <span>Criar/editar sem mesa</span>
                 </button>
 
                 <button type="button" id="role-btn-master" class="role-option" onclick="selectPortalRole('master')">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                     </svg>
                     <strong>SOU MESTRE</strong>
-                    <span>Escudo, mapas, pinos, músicas e notas</span>
+                    <span>Escudo da campanha</span>
                 </button>
             </div>
 
-            <div class="portal-form">
+            <!-- MODO 1 & 3: ENTRAR EM CAMPANHA (JOGADOR OU MESTRE) -->
+            <div id="portal-form-session" class="portal-form">
+                <div class="field-group" id="portal-saved-char-picker-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label class="field-label" for="portal-saved-char-select">Usar Personagem Salvo no Aparelho (Opcional)</label>
+                        <button type="button" class="btn-mini" onclick="selectPortalRole('roster')">+ Criar Novo</button>
+                    </div>
+                    <select id="portal-saved-char-select" class="input-control mono" onchange="applySelectedRosterCharacterToPortal()">
+                        <option value="">-- Digitar ID manualmente ou escolher salvo --</option>
+                    </select>
+                </div>
+
                 <div class="field-group">
                     <label class="field-label" for="portal-campaign">Código da Campanha / Mesa</label>
                     <input type="text" id="portal-campaign" class="input-control mono" value="campanha-01" placeholder="ex: campanha-01">
@@ -73,8 +95,20 @@
                 </button>
             </div>
 
+            <!-- MODO 2: MEUS PERSONAGENS OFFLINE / SEM CAMPANHA -->
+            <div id="portal-roster-panel" class="portal-form hidden">
+                <div class="roster-create-bar">
+                    <input type="text" id="new-local-char-id" class="input-control mono" placeholder="ID ou Nome (ex: marcos-01)" onkeydown="if(event.key==='Enter') createNewLocalCharacter()">
+                    <button type="button" class="btn btn-success" onclick="createNewLocalCharacter()">+ Criar Ficha</button>
+                </div>
+
+                <div id="local-roster-list" class="local-roster-list">
+                    <div class="empty-state-box">Nenhum personagem criado neste aparelho ainda.</div>
+                </div>
+            </div>
+
             <div class="portal-footer-note">
-                Rolagens físicas na mesa &bull; Mapas, Pinos e Trilhas Sonoras sincronizados
+                Crie seus personagens livremente e entre em qualquer mesa quando quiser
             </div>
         </div>
     </section>
@@ -111,7 +145,11 @@
                     </div>
 
                     <div class="toolbar">
-                        <button type="button" class="btn" onclick="copySessionLink()" title="Copiar link direto para abrir no celular ou compartilhar">
+                        <button type="button" id="btn-join-campaign-from-standalone" class="btn btn-success hidden" onclick="promptJoinCampaignFromStandalone()" title="Levar este personagem para uma campanha online">
+                            <span>Entrar em Campanha</span>
+                        </button>
+
+                        <button type="button" id="btn-copy-link" class="btn" onclick="copySessionLink()" title="Copiar link direto para abrir no celular ou compartilhar">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
@@ -135,15 +173,15 @@
                             </svg>
                         </button>
 
-                        <button type="button" class="btn btn-danger-outline" onclick="switchAccountPortal()" title="Trocar ID ou alternar entre Jogador e Mestre">
-                            <span>Trocar ID / Sair</span>
+                        <button type="button" class="btn btn-danger-outline" onclick="switchAccountPortal()" title="Desconectar da mesa e voltar ao menu inicial">
+                            <span>Sair da Mesa</span>
                         </button>
 
                         <input type="file" id="json-file-input" accept=".json,application/json" style="display: none;" onchange="handleFallbackJsonUpload(event)">
                     </div>
                 </div>
 
-                <!-- BARRA FLUTUANTE DE MÚSICA / AMBIENTE DO JOGADOR (Fica ativa em qualquer aba!) -->
+                <!-- BARRA FLUTUANTE DE MÚSICA / AMBIENTE DO JOGADOR -->
                 <div id="player-audio-bar" class="audio-dock hidden">
                     <div class="audio-dock-info">
                         <span class="audio-eq-dot"></span>
@@ -399,7 +437,7 @@
                 </div>
             </section>
 
-            <!-- PÁGINA 03 — VISÃO DA MESA (MAPA COM PINOS + NPCS/PISTAS) -->
+            <!-- PÁGINA 03 — VISÃO DA MESA (MAPA COM PINOS + NPCS/PISTAS CLICÁVEIS) -->
             <section id="page-3" class="page-section hidden">
                 <div class="card">
                     <div class="section-header">
@@ -430,6 +468,7 @@
                     <div class="card">
                         <div class="section-header">
                             <h2 class="section-title amber">PERSONAGENS &amp; AMEAÇAS EM CENA</h2>
+                            <span class="section-hint">Clique para ampliar</span>
                         </div>
                         <div id="player-visible-entities" class="cards-feed">
                             <div class="empty-state-box">Nenhum personagem ou criatura revelado pelo Mestre.</div>
@@ -439,6 +478,7 @@
                     <div class="card">
                         <div class="section-header">
                             <h2 class="section-title blue">ITENS, PISTAS &amp; DOCUMENTOS</h2>
+                            <span class="section-hint">Clique para ampliar</span>
                         </div>
                         <div id="player-visible-items" class="cards-feed">
                             <div class="empty-state-box">Nenhum item ou pista revelado pelo Mestre.</div>
@@ -463,21 +503,44 @@
                             <span id="master-active-map-label" class="section-hint">Selecione ou libere um mapa abaixo para posicionar os pinos</span>
                         </div>
                         <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                            <button type="button" class="btn btn-success" onclick="syncPlayersToPins()">+ Puxar Jogadores como Pinos</button>
-                            <button type="button" class="btn btn-danger-outline" onclick="clearAllMapPins()">Limpar Pinos</button>
+                            <button type="button" class="btn btn-danger-outline" onclick="clearAllMapPins()">Limpar Todos os Pinos</button>
                         </div>
                     </div>
 
+                    <!-- Criar pino livre -->
                     <div class="pin-creator-bar">
                         <input type="text" id="new-pin-label" class="input-control" placeholder="Nome do pino (ex: Infectado 01, Porta, Carro)">
-                        <select id="new-pin-color" class="input-control mono">
-                            <option value="#ef4444">Vermelho (Ameaça / Inimigo)</option>
-                            <option value="#10b981">Verde (Sobrevivente / Aliado)</option>
-                            <option value="#3b82f6">Azul (Jogador / Especial)</option>
-                            <option value="#f59e0b">Âmbar (Objetivo / Pista)</option>
-                            <option value="#a855f7">Roxo (Chefe / Anomalia)</option>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <input type="color" id="new-pin-color" value="#ef4444" class="color-picker-control" title="Escolha a cor do pino">
+                            <select id="new-pin-color-preset" class="input-control mono" onchange="document.getElementById('new-pin-color').value = this.value">
+                                <option value="#ef4444">Vermelho (Inimigo)</option>
+                                <option value="#10b981">Verde (Aliado)</option>
+                                <option value="#3b82f6">Azul (Jogador)</option>
+                                <option value="#f59e0b">Âmbar (Pista/Obj)</option>
+                                <option value="#a855f7">Roxo (Chefe)</option>
+                            </select>
+                        </div>
+                        <button type="button" class="btn btn-primary" onclick="addCustomMapPin()">+ Colocar Pino</button>
+                    </div>
+
+                    <!-- Criar pino de jogador online escolhendo a cor -->
+                    <div class="pin-player-bar">
+                        <select id="pin-target-player" class="input-control mono">
+                            <option value="">Selecione um jogador online...</option>
                         </select>
-                        <button type="button" class="btn btn-primary" onclick="addCustomMapPin()">+ Colocar Pino no Mapa</button>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <input type="color" id="pin-player-color" value="#3b82f6" class="color-picker-control" title="Escolha a cor do token deste jogador">
+                            <select class="input-control mono" onchange="document.getElementById('pin-player-color').value = this.value">
+                                <option value="#3b82f6">Azul</option>
+                                <option value="#10b981">Verde</option>
+                                <option value="#f59e0b">Amarelo / Âmbar</option>
+                                <option value="#a855f7">Roxo</option>
+                                <option value="#ec4899">Rosa</option>
+                                <option value="#06b6d4">Ciano</option>
+                                <option value="#ef4444">Vermelho</option>
+                            </select>
+                        </div>
+                        <button type="button" class="btn btn-success" onclick="addSinglePlayerPin()">+ Adicionar Token do Jogador</button>
                     </div>
 
                     <div id="master-map-container" class="map-viewport" style="margin-top: 12px;">
@@ -639,7 +702,6 @@
                         </div>
                     </div>
 
-                    <!-- Painel de Transmissão Ativa do Mestre -->
                     <div class="media-now-playing-bar">
                         <div>
                             <span class="section-hint">TOCANDO AGORA PARA TODOS OS JOGADORES:</span>
@@ -653,7 +715,6 @@
                     </div>
                 </div>
 
-                <!-- Lista de Músicas Salvas -->
                 <div class="card">
                     <div class="section-header">
                         <h2 class="section-title" style="color: #6ee7b7;">SUA BIBLIOTECA DE MÚSICAS DA CAMPANHA</h2>
@@ -665,15 +726,15 @@
                 </div>
             </section>
 
-            <!-- ABA MESTRE 3: MONITOR DE SOBREVIVENTES DA MESA -->
+            <!-- ABA MESTRE 3: MONITOR DE SOBREVIVENTES ONLINE DA MESA -->
             <section id="mpage-3" class="page-section hidden">
                 <div class="card">
                     <div class="section-header">
-                        <h2 class="section-title red">SOBREVIVENTES CONECTADOS NA CAMPANHA</h2>
-                        <span class="section-hint">Atualizado em tempo real conforme os jogadores editam suas fichas</span>
+                        <h2 class="section-title red">SOBREVIVENTES ONLINE NA CAMPANHA</h2>
+                        <span class="section-hint">Mostra apenas jogadores conectados no momento (sai automaticamente quando fecham ou clicam em Sair)</span>
                     </div>
                     <div id="master-players-overview" class="players-monitor-grid">
-                        <div class="empty-state-box">Nenhum jogador conectado nesta campanha ainda.</div>
+                        <div class="empty-state-box">Nenhum jogador conectado nesta campanha no momento.</div>
                     </div>
                 </div>
             </section>
@@ -712,10 +773,43 @@
     <div id="reset-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
         <div class="modal-card">
             <h3 class="modal-title">Limpar Toda a Ficha?</h3>
-            <p class="modal-desc">Todos os campos, foto e mochila deste ID serão apagados na nuvem e localmente.</p>
+            <p class="modal-desc">Todos os campos, foto e mochila deste ID serão apagados.</p>
             <div class="modal-actions">
                 <button type="button" class="btn" onclick="closeResetModal()">Cancelar</button>
                 <button type="button" class="btn btn-primary" onclick="confirmResetFicha()">Sim, Limpar Tudo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Visualização Ampliada de Pista / Imagem / NPC -->
+    <div id="lightbox-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" onclick="if(event.target===this) closeLightbox()">
+        <div class="lightbox-card">
+            <div class="lightbox-header">
+                <div>
+                    <h3 id="lightbox-title" class="lightbox-title">Documento / Pista</h3>
+                    <span id="lightbox-subtitle" class="entity-sub"></span>
+                </div>
+                <button type="button" class="btn btn-danger-outline" onclick="closeLightbox()">Fechar (X)</button>
+            </div>
+            <div id="lightbox-img-wrap" class="lightbox-img-wrap hidden">
+                <img id="lightbox-img" src="" alt="Imagem ampliada">
+            </div>
+            <div id="lightbox-desc" class="lightbox-desc"></div>
+        </div>
+    </div>
+
+    <!-- Modal para entrar em campanha a partir de uma ficha criada sem mesa -->
+    <div id="join-campaign-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+        <div class="modal-card">
+            <h3 class="modal-title">Entrar em Campanha com esta Ficha</h3>
+            <p class="modal-desc">Digite o código da mesa do seu Mestre para levar este personagem para a sessão:</p>
+            <div class="field-group" style="text-align: left; margin-bottom: 16px;">
+                <label class="field-label" for="standalone-target-campaign">Código da Campanha / Mesa</label>
+                <input type="text" id="standalone-target-campaign" class="input-control mono" value="campanha-01" placeholder="ex: campanha-01">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn" onclick="closeJoinCampaignModal()">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="confirmJoinCampaignFromStandalone()">Conectar na Mesa</button>
             </div>
         </div>
     </div>
