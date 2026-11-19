@@ -1,8 +1,11 @@
 // ==========================================================================
-// ESCUDO DO MESTRE — MAPAS DO CANVA, NPCS, ITENS & CONTROLE DE VISIBILIDADE
+// ESCUDO DO MESTRE — MAPAS, PINOS, ENVIO DE ITENS, MÚSICA LOCAL & NOTAS
 // ==========================================================================
 let masterCampaignRef = null;
 let currentActiveMapId = null;
+let currentActiveAudioId = null;
+let cachedCampaignPlayers = {};
+let noteSaveTimers = {};
 
 function initMasterWorkspace(campaignId) {
     if (!db) {
@@ -13,47 +16,401 @@ function initMasterWorkspace(campaignId) {
     detachMasterListeners();
     masterCampaignRef = db.ref(`campaigns/${campaignId}`);
 
-    // 1. Escuta qual mapa está ativo na visão dos jogadores
-    masterCampaignRef.child('activeMapId').on('value', (snap) => {
+    // 1. Escuta o mapa ativo e atualiza o palco interativo do Mestre
+    masterCampaignRef.child('activeMapId').on('value', async (snap) => {
         currentActiveMapId = snap.val();
+        const stageEl = document.getElementById('master-map-stage');
+        const imgEl = document.getElementById('master-map-img');
+        const emptyEl = document.getElementById('master-map-empty');
+        const labelEl = document.getElementById('master-active-map-label');
+
+        if (!currentActiveMapId) {
+            stageEl.classList.add('hidden');
+            emptyEl.classList.remove('hidden');
+            labelEl.textContent = 'Nenhum mapa ativo na tela dos jogadores';
+        } else {
+            const mSnap = await masterCampaignRef.child(`maps/${currentActiveMapId}`).once('value');
+            const mData = mSnap.val();
+            if (mData && mData.imageData) {
+                imgEl.src = mData.imageData;
+                stageEl.classList.remove('hidden');
+                emptyEl.classList.add('hidden');
+                labelEl.textContent = `Transmitindo ao vivo: ${mData.name}`;
+            }
+        }
+
         masterCampaignRef.child('maps').once('value').then(s => renderMasterMaps(s.val() || {}));
     });
 
-    // 2. Escuta lista de mapas da campanha
+    // 2. Escuta pinos arrastáveis do mapa
+    masterCampaignRef.child('mapPins').on('value', (snap) => {
+        renderInteractiveMapPins('master-pins-layer', snap.val() || {}, true);
+    });
+
+    // 3. Escuta lista de mapas da campanha
     masterCampaignRef.child('maps').on('value', (snap) => {
         renderMasterMaps(snap.val() || {});
     });
 
-    // 3. Escuta NPCs e Personagens
+    // 4. Escuta NPCs e Personagens
     masterCampaignRef.child('entities').on('value', (snap) => {
         renderMasterCardsList('master-entities-list', 'entities', snap.val() || {}, 'Nenhum NPC cadastrado.');
     });
 
-    // 4. Escuta Itens e Pistas
+    // 5. Escuta Pistas e Documentos
     masterCampaignRef.child('items').on('value', (snap) => {
-        renderMasterCardsList('master-items-list', 'items', snap.val() || {}, 'Nenhum item ou pista cadastrado.');
+        renderMasterCardsList('master-items-list', 'items', snap.val() || {}, 'Nenhuma pista cadastrada.');
     });
 
-    // 5. Monitora todos os jogadores conectados nesta campanha
+    // 6. Escuta Biblioteca de Músicas Locais & Música Tocando Agora
+    masterCampaignRef.child('activeAudio').on('value', (snap) => {
+        const val = snap.val();
+        currentActiveAudioId = val ? val.id : null;
+        document.getElementById('master-current-audio-name').textContent = val ? val.name : 'Nenhuma música tocando';
+        masterCampaignRef.child('audioLibrary').once('value').then(s => renderMasterAudioList(s.val() || {}));
+    });
+
+    masterCampaignRef.child('audioLibrary').on('value', (snap) => {
+        renderMasterAudioList(snap.val() || {});
+    });
+
+    // 7. Monitora jogadores conectados + atualiza seletor de envio direto de itens
     masterCampaignRef.child('players').on('value', (snap) => {
-        renderPlayersMonitor(snap.val() || {});
+        cachedCampaignPlayers = snap.val() || {};
+        renderPlayersMonitor(cachedCampaignPlayers);
+        updateGiftPlayerSelect(cachedCampaignPlayers);
+    });
+
+    // 8. Escuta Blocos de Notas Secretos
+    masterCampaignRef.child('masterSecretNotes').on('value', (snap) => {
+        renderMasterSecretNotes(snap.val());
     });
 }
 
 function detachMasterListeners() {
     if (masterCampaignRef) {
         masterCampaignRef.child('activeMapId').off();
+        masterCampaignRef.child('mapPins').off();
         masterCampaignRef.child('maps').off();
         masterCampaignRef.child('entities').off();
         masterCampaignRef.child('items').off();
+        masterCampaignRef.child('activeAudio').off();
+        masterCampaignRef.child('audioLibrary').off();
         masterCampaignRef.child('players').off();
+        masterCampaignRef.child('masterSecretNotes').off();
     }
 }
 
 function switchMasterPage(num) {
-    [1, 2, 3].forEach(n => {
+    [1, 2, 3, 4, 5].forEach(n => {
         document.getElementById('mpage-' + n).classList.toggle('hidden', n !== num);
         document.getElementById('mtab-btn-' + n).classList.toggle('active', n === num);
+    });
+}
+
+// ==========================================================================
+// JUKEBOX DE MÚSICAS LOCAIS DO MESTRE (UPLOAD DIRETO DO CELULAR/PC)
+// ==========================================================================
+function uploadMasterAudioFile() {
+    if (!masterCampaignRef) return;
+    const nameEl = document.getElementById('media-name');
+    const fileEl = document.getElementById('media-file');
+    const file = fileEl.files && fileEl.files[0];
+
+    if (!file) {
+        showToast('Selecione um arquivo de áudio (.mp3, .ogg, .wav, .m4a) do seu aparelho.');
+        return;
+    }
+
+    const maxBytes = 8 * 1024 * 1024; // 8 MB (limite seguro para Firebase RTDB)
+    if (file.size > maxBytes) {
+        showToast('Arquivo muito grande (máx. 8 MB). Use um MP3 comprimido ou mais curto.');
+        return;
+    }
+
+    const trackName = nameEl.value.trim() || file.name.replace(/\.[^/.]+$/, '');
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+
+    setSyncStatus('syncing', 'Enviando música para a nuvem...');
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const base64Audio = e.target.result;
+        const audioId = 'audio_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5);
+
+        masterCampaignRef.child(`audioLibrary/${audioId}`).set({
+            id: audioId,
+            name: trackName,
+            fileName: file.name,
+            sizeLabel: sizeMB,
+            audioData: base64Audio,
+            createdAt: Date.now()
+        }).then(() => {
+            nameEl.value = '';
+            fileEl.value = '';
+            setSyncStatus('online', 'Música salva na biblioteca');
+            showToast(`"${trackName}" salvo! Clique em Tocar na Mesa quando quiser.`);
+        }).catch(() => {
+            setSyncStatus('offline', 'Erro ao enviar áudio');
+            showToast('Erro ao salvar o áudio. Tente um arquivo menor.');
+        });
+    };
+    reader.readAsDataURL(file);
+}
+
+function playMasterAudio(audioId, trackName) {
+    if (!masterCampaignRef) return;
+    masterCampaignRef.child('activeAudio').set({
+        id: audioId,
+        name: trackName,
+        startedAt: Date.now()
+    }).then(() => {
+        showToast(`Tocando "${trackName}" para todos os jogadores!`);
+    });
+}
+
+function stopActiveAudio() {
+    if (!masterCampaignRef) return;
+    masterCampaignRef.child('activeAudio').remove().then(() => {
+        showToast('Música encerrada para toda a mesa.');
+    });
+}
+
+function deleteMasterAudio(audioId) {
+    if (!masterCampaignRef) return;
+    if (currentActiveAudioId === audioId) stopActiveAudio();
+    masterCampaignRef.child(`audioLibrary/${audioId}`).remove().then(() => {
+        showToast('Música removida da biblioteca.');
+    });
+}
+
+function renderMasterAudioList(audioObj) {
+    const container = document.getElementById('master-audio-list');
+    if (!container) return;
+
+    const tracks = Object.values(audioObj).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+    if (tracks.length === 0) {
+        container.innerHTML = '<div class="empty-state-box">Nenhuma música salva ainda. Suba suas faixas acima e dê nomes fáceis de usar durante a sessão.</div>';
+        return;
+    }
+
+    container.innerHTML = '';
+    tracks.forEach(track => {
+        const isPlaying = currentActiveAudioId === track.id;
+        const safeName = escapeHtml(track.name).replace(/'/g, "\'");
+
+        const card = document.createElement('div');
+        card.className = `entity-card ${isPlaying ? 'is-visible' : 'is-hidden'}`;
+        card.innerHTML = `
+            <div class="entity-info">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+                    <span class="entity-title">${escapeHtml(track.name)}</span>
+                    <span class="visibility-pill ${isPlaying ? 'visible' : 'hidden-pill'}">${isPlaying ? 'TOCANDO NA MESA' : 'PRONTA'}</span>
+                </div>
+                <div class="entity-sub">Arquivo: ${escapeHtml(track.fileName || 'áudio')} (${escapeHtml(track.sizeLabel || '')})</div>
+                <div class="entity-controls">
+                    ${isPlaying
+                        ? `<button type="button" class="btn-mini danger" onclick="stopActiveAudio()">Parar Música</button>`
+                        : `<button type="button" class="btn-mini btn-success" onclick="playMasterAudio('${track.id}', '${safeName}')">Tocar na Mesa</button>`
+                    }
+                    <button type="button" class="btn-mini danger" onclick="deleteMasterAudio('${track.id}')">Excluir</button>
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// ==========================================================================
+// CONTROLE DE PINOS NO MAPA (MESTRE)
+// ==========================================================================
+function addCustomMapPin() {
+    if (!masterCampaignRef) return;
+    const labelInput = document.getElementById('new-pin-label');
+    const colorInput = document.getElementById('new-pin-color');
+    const label = labelInput.value.trim();
+
+    if (!label) {
+        showToast('Digite um nome para o pino (ex: Infectado 01).');
+        return;
+    }
+
+    const pinId = 'pin_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5);
+    masterCampaignRef.child(`mapPins/${pinId}`).set({
+        id: pinId,
+        label: label,
+        color: colorInput.value || '#ef4444',
+        x: 50,
+        y: 50
+    }).then(() => {
+        labelInput.value = '';
+        showToast(`Pino "${label}" colocado no centro do mapa!`);
+    });
+}
+
+function syncPlayersToPins() {
+    if (!masterCampaignRef) return;
+    const entries = Object.entries(cachedCampaignPlayers);
+    if (entries.length === 0) {
+        showToast('Nenhum jogador conectado na campanha ainda.');
+        return;
+    }
+
+    const updates = {};
+    entries.forEach(([playerId, p], idx) => {
+        const pinId = `player_pin_${playerId}`;
+        const label = p.apelido || p.nome || playerId;
+        updates[`mapPins/${pinId}`] = {
+            id: pinId,
+            label: label,
+            color: '#3b82f6',
+            x: Math.min(85, 25 + idx * 12),
+            y: 50
+        };
+    });
+
+    masterCampaignRef.update(updates).then(() => {
+        showToast('Pinos dos sobreviventes adicionados ao mapa!');
+    });
+}
+
+function clearAllMapPins() {
+    if (!masterCampaignRef) return;
+    masterCampaignRef.child('mapPins').remove().then(() => {
+        showToast('Todos os pinos foram removidos do mapa.');
+    });
+}
+
+// ==========================================================================
+// ENVIO DIRETO DE ITEM PARA A MOCHILA DE UM JOGADOR ESPECÍFICO
+// ==========================================================================
+function updateGiftPlayerSelect(playersObj) {
+    const select = document.getElementById('gift-target-player');
+    if (!select) return;
+    const prevValue = select.value;
+    const entries = Object.entries(playersObj);
+
+    if (entries.length === 0) {
+        select.innerHTML = '<option value="">Nenhum jogador na mesa ainda</option>';
+        return;
+    }
+
+    select.innerHTML = entries.map(([playerId, p]) => {
+        const displayName = p.nome || p.apelido || playerId;
+        return `<option value="${escapeHtml(playerId)}">${escapeHtml(displayName)} (${escapeHtml(playerId)})</option>`;
+    }).join('');
+
+    if (prevValue && playersObj[prevValue]) {
+        select.value = prevValue;
+    }
+}
+
+async function sendItemDirectlyToPlayer() {
+    if (!masterCampaignRef) return;
+    const targetId = document.getElementById('gift-target-player').value;
+    const nameInput = document.getElementById('gift-item-name');
+    const weightInput = document.getElementById('gift-item-weight');
+    const descInput = document.getElementById('gift-item-desc');
+
+    const itemName = nameInput.value.trim();
+    if (!targetId) {
+        showToast('Selecione um jogador destinatário.');
+        return;
+    }
+    if (!itemName) {
+        showToast('Digite o nome do item para enviar.');
+        return;
+    }
+
+    const weightVal = parseFloat(weightInput.value);
+    const finalWeight = isNaN(weightVal) ? 1 : weightVal;
+
+    const playerRef = masterCampaignRef.child(`players/${targetId}`);
+    const snap = await playerRef.once('value');
+    const pData = snap.val() || {};
+    const currentBag = Array.isArray(pData.mochila) ? pData.mochila : [];
+
+    currentBag.push({
+        id: 'item_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+        nome: itemName,
+        descricao: descInput.value.trim(),
+        peso: finalWeight,
+        fromMaster: true
+    });
+
+    await playerRef.update({
+        mochila: currentBag,
+        updatedAt: Date.now()
+    });
+
+    nameInput.value = '';
+    descInput.value = '';
+    weightInput.value = '1';
+    showToast(`"${itemName}" enviado direto para a mochila de ${targetId}!`);
+}
+
+// ==========================================================================
+// BLOCOS DE NOTAS SECRETOS DO MESTRE
+// ==========================================================================
+function renderMasterSecretNotes(notesObj) {
+    const grid = document.getElementById('master-notes-grid');
+    if (!grid) return;
+
+    if (!notesObj) {
+        createMasterSecretNote('Anotações da Sessão 01');
+        return;
+    }
+
+    const notes = Object.values(notesObj).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    if (grid.contains(document.activeElement) && grid.children.length === notes.length) return;
+
+    grid.innerHTML = '';
+    notes.forEach(note => {
+        const card = document.createElement('div');
+        card.className = 'secret-note-card';
+        card.innerHTML = `
+            <div class="secret-note-header">
+                <input type="text" class="input-control mono" style="font-weight: 700;" value="${escapeHtml(note.title || '')}" placeholder="Título do bloco...">
+                <button type="button" class="btn-mini danger" title="Apagar bloco">X</button>
+            </div>
+            <textarea class="textarea-control" rows="7" placeholder="Segredos da trama, testes ocultos, pontos de vida de chefes...">${escapeHtml(note.content || '')}</textarea>
+        `;
+
+        const titleInput = card.querySelector('input');
+        const textArea = card.querySelector('textarea');
+        const delBtn = card.querySelector('button');
+
+        const scheduleNoteSave = () => {
+            setSyncStatus('syncing', 'Salvando nota secreta...');
+            clearTimeout(noteSaveTimers[note.id]);
+            noteSaveTimers[note.id] = setTimeout(() => {
+                masterCampaignRef.child(`masterSecretNotes/${note.id}`).update({
+                    title: titleInput.value,
+                    content: textArea.value,
+                    updatedAt: Date.now()
+                }).then(() => setSyncStatus('online', 'Nota secreta salva'));
+            }, 500);
+        };
+
+        titleInput.addEventListener('input', scheduleNoteSave);
+        textArea.addEventListener('input', scheduleNoteSave);
+        delBtn.addEventListener('click', () => {
+            masterCampaignRef.child(`masterSecretNotes/${note.id}`).remove();
+        });
+
+        grid.appendChild(card);
+    });
+}
+
+function createMasterSecretNote(defaultTitle = 'Novo Bloco Secreto') {
+    if (!masterCampaignRef) return;
+    const noteId = 'note_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5);
+    masterCampaignRef.child(`masterSecretNotes/${noteId}`).set({
+        id: noteId,
+        title: defaultTitle,
+        content: '',
+        createdAt: Date.now()
     });
 }
 
@@ -74,7 +431,6 @@ function uploadMasterMap() {
     const mapName = nameInput.value.trim() || file.name.replace(/\.[^/.]+$/, '');
     setSyncStatus('syncing', 'Otimizando e enviando mapa...');
 
-    // Comprime para até 1600px de largura mantendo nitidez e carregamento rápido no celular
     compressImageFile(file, 1600, 0.82, (base64Image) => {
         const mapId = 'map_' + Date.now();
         masterCampaignRef.child(`maps/${mapId}`).set({
@@ -89,7 +445,7 @@ function uploadMasterMap() {
             showToast(`Mapa "${mapName}" enviado! Clique em Mostrar para liberar aos jogadores.`);
         }).catch(() => {
             setSyncStatus('offline', 'Erro ao enviar mapa');
-            showToast('Erro ao enviar mapa. Tente uma imagem mais leve.');
+            showToast('Erro ao enviar mapa.');
         });
     });
 }
@@ -149,7 +505,7 @@ function renderMasterMaps(mapsObj) {
 }
 
 // ==========================================================================
-// CRIAÇÃO & VISIBILIDADE DE NPCS, PERSONAGENS E ITENS
+// CRIAÇÃO & VISIBILIDADE DE NPCS E PISTAS NA MESA
 // ==========================================================================
 function createMasterCard(collectionName) {
     if (!masterCampaignRef) return;
@@ -182,7 +538,7 @@ function createMasterCard(collectionName) {
             roleEl.value = '';
             descEl.value = '';
             fileEl.value = '';
-            showToast(`"${name}" salvo como OCULTO. Clique em Mostrar quando quiser revelar.`);
+            showToast(`"${name}" salvo como OCULTO.`);
         });
     };
 
@@ -262,6 +618,10 @@ function renderPlayersMonitor(playersObj) {
         const card = document.createElement('div');
         card.className = 'player-status-card';
         const displayName = p.nome || p.apelido || playerId;
+        const wStats = typeof calculateBackpackWeightStats === 'function'
+            ? calculateBackpackWeightStats(p.mochila)
+            : { usedWeight: 0, maxCapacity: 4 };
+
         card.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
@@ -274,6 +634,7 @@ function renderPlayersMonitor(playersObj) {
                 <div class="stat-box"><span>VITALIDADE</span><strong style="color: #f87171;">${p.vitalidade ?? 10}</strong></div>
                 <div class="stat-box"><span>MENTAL</span><strong style="color: #fbbf24;">${p.mental ?? 10}</strong></div>
                 <div class="stat-box"><span>PN</span><strong style="color: #60a5fa;">${p.pn ?? 0}</strong></div>
+                <div class="stat-box"><span>CARGA</span><strong style="color: ${wStats.usedWeight > wStats.maxCapacity ? '#f87171' : '#6ee7b7'};">${wStats.usedWeight}/${wStats.maxCapacity}</strong></div>
             </div>
             <div class="section-hint">
                 Instinto: <strong>${p.instinto ?? 1}</strong> &bull; Mente: <strong>${p.mente ?? 1}</strong> &bull; Corpo: <strong>${p.corpo ?? 1}</strong>

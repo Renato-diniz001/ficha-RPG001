@@ -29,7 +29,7 @@
                 </div>
                 <div>
                     <h1 class="brand-title">INFECÇÃO <span>X</span></h1>
-                    <p class="portal-sub">TERMINAL DE CONEXÃO DA MESA</p>
+                    <p class="portal-sub">TERMINAL DE CONEXÃO DA MESA // V4</p>
                 </div>
             </div>
 
@@ -40,7 +40,7 @@
                         <circle cx="12" cy="7" r="4"/>
                     </svg>
                     <strong>SOU JOGADOR</strong>
-                    <span>Ficha pessoal + Visão da mesa</span>
+                    <span>Ficha pessoal + Visão e Som da mesa</span>
                 </button>
 
                 <button type="button" id="role-btn-master" class="role-option" onclick="selectPortalRole('master')">
@@ -48,7 +48,7 @@
                         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                     </svg>
                     <strong>SOU MESTRE</strong>
-                    <span>Escudo, mapas, NPCs e visibilidade</span>
+                    <span>Escudo, mapas, pinos, músicas e notas</span>
                 </button>
             </div>
 
@@ -74,7 +74,7 @@
             </div>
 
             <div class="portal-footer-note">
-                Rolagens físicas na mesa &bull; Sincronização em tempo real via nuvem
+                Rolagens físicas na mesa &bull; Mapas, Pinos e Trilhas Sonoras sincronizados
             </div>
         </div>
     </section>
@@ -143,6 +143,27 @@
                     </div>
                 </div>
 
+                <!-- BARRA FLUTUANTE DE MÚSICA / AMBIENTE DO JOGADOR (Fica ativa em qualquer aba!) -->
+                <div id="player-audio-bar" class="audio-dock hidden">
+                    <div class="audio-dock-info">
+                        <span class="audio-eq-dot"></span>
+                        <div>
+                            <div class="audio-dock-label">TRILHA SONORA DA MESA</div>
+                            <strong id="player-audio-title">Nenhuma música tocando</strong>
+                        </div>
+                    </div>
+                    <div class="audio-dock-controls">
+                        <button type="button" id="btn-player-unmute" class="btn btn-success" onclick="enablePlayerAudio()">
+                            <span>Ativar Som</span>
+                        </button>
+                        <label class="volume-control-wrap" title="Seu volume local">
+                            <span>VOL</span>
+                            <input type="range" id="player-local-volume" min="0" max="100" value="75" oninput="updatePlayerLocalVolume(this.value)">
+                        </label>
+                    </div>
+                    <audio id="native-table-audio" loop preload="auto"></audio>
+                </div>
+
                 <!-- Navegação do JOGADOR (3 Abas) -->
                 <nav id="player-tabs" class="tabs-bar three-tabs" aria-label="Páginas do Jogador">
                     <button type="button" id="tab-btn-1" class="tab-btn active" onclick="switchPlayerPage(1)">
@@ -157,16 +178,22 @@
                     </button>
                 </nav>
 
-                <!-- Navegação do MESTRE (3 Abas) -->
-                <nav id="master-tabs" class="tabs-bar three-tabs hidden" aria-label="Painel do Mestre">
+                <!-- Navegação do MESTRE (5 Abas) -->
+                <nav id="master-tabs" class="tabs-bar five-tabs hidden" aria-label="Painel do Mestre">
                     <button type="button" id="mtab-btn-1" class="tab-btn active" onclick="switchMasterPage(1)">
-                        <span>MAPAS &amp; TELA DA MESA</span>
+                        <span>MAPA &amp; PINOS</span>
                     </button>
                     <button type="button" id="mtab-btn-2" class="tab-btn" onclick="switchMasterPage(2)">
-                        <span>PERSONAGENS, NPCS &amp; ITENS</span>
+                        <span>NPCS, PISTAS &amp; ENVIO</span>
+                    </button>
+                    <button type="button" id="mtab-btn-5" class="tab-btn" onclick="switchMasterPage(5)">
+                        <span>MÚSICAS DA MESA</span>
                     </button>
                     <button type="button" id="mtab-btn-3" class="tab-btn" onclick="switchMasterPage(3)">
-                        <span>SOBREVIVENTES DA MESA</span>
+                        <span>SOBREVIVENTES</span>
+                    </button>
+                    <button type="button" id="mtab-btn-4" class="tab-btn" onclick="switchMasterPage(4)">
+                        <span>NOTAS SECRETAS</span>
                     </button>
                 </nav>
             </div>
@@ -311,7 +338,7 @@
                 </div>
             </section>
 
-            <!-- PÁGINA 02/02 — CONDIÇÕES E MOCHILA -->
+            <!-- PÁGINA 02/02 — CONDIÇÕES E MOCHILA (COM SISTEMA DE PESO AUTOMÁTICO) -->
             <section id="page-2" class="page-section hidden">
                 <div class="three-col-grid">
                     <div class="card">
@@ -328,15 +355,36 @@
                     </div>
                 </div>
 
+                <!-- MOCHILA COM CÁLCULO AUTOMÁTICO DE PESO E EXPANSÃO -->
                 <div class="card">
                     <div class="section-header">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <h2 class="section-title red">MOCHILA / ITENS</h2>
-                            <span id="backpack-count" class="section-hint">(0 itens)</span>
+                        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+                            <h2 class="section-title red">MOCHILA &amp; CARGA</h2>
+                            <div id="weight-meter-pill" class="weight-pill">
+                                <span id="weight-summary-text">Carga: 0 / 4 (Livre: 4)</span>
+                            </div>
                         </div>
-                        <button type="button" class="btn btn-primary" onclick="addBackpackItem()">+ Adicionar Item</button>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-success" onclick="addBackpackItem(true)" title="Adiciona um item de expansão que aumenta a capacidade (ex: Mochila -5)">
+                                + Mochila / Expansão
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="addBackpackItem(false)">
+                                + Adicionar Item
+                            </button>
+                        </div>
                     </div>
-                    <div id="backpack-list" class="backpack-list"></div>
+
+                    <div class="weight-bar-container">
+                        <div class="weight-bar-track">
+                            <div id="weight-bar-fill" class="weight-bar-fill" style="width: 0%;"></div>
+                        </div>
+                        <div class="weight-legend">
+                            <span>Carga Base: <strong>4</strong> <span id="weight-bonus-label"></span></span>
+                            <span id="weight-status-alert" class="weight-ok">Capacidade normal</span>
+                        </div>
+                    </div>
+
+                    <div id="backpack-list" class="backpack-list" style="margin-top: 14px;"></div>
                 </div>
 
                 <div class="two-col-grid">
@@ -351,14 +399,16 @@
                 </div>
             </section>
 
-            <!-- PÁGINA 03 — VISÃO DA MESA (O QUE O MESTRE LIBERAR) -->
+            <!-- PÁGINA 03 — VISÃO DA MESA (MAPA COM PINOS + NPCS/PISTAS) -->
             <section id="page-3" class="page-section hidden">
-                <!-- Mapa Atual Liberado pelo Mestre -->
                 <div class="card">
                     <div class="section-header">
-                        <h2 class="section-title red">MAPA ATUAL DA SESSÃO</h2>
-                        <div style="display: flex; gap: 8px; align-items: center;">
+                        <div>
+                            <h2 class="section-title red">MAPA ATUAL DA SESSÃO</h2>
                             <span id="player-map-title" class="section-hint">Aguardando transmissão do Mestre...</span>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <span class="section-hint">Arraste os pinos pelo mapa</span>
                             <button type="button" class="btn-mini" onclick="zoomPlayerMap(0.25)">+ Zoom</button>
                             <button type="button" class="btn-mini" onclick="zoomPlayerMap(-0.25)">- Zoom</button>
                             <button type="button" class="btn-mini" onclick="resetPlayerMapZoom()">100%</button>
@@ -369,11 +419,13 @@
                         <div id="player-map-empty" class="empty-state-box">
                             Nenhum mapa visível no momento. Quando o Mestre liberar o mapa da cena, ele aparecerá aqui automaticamente.
                         </div>
-                        <img id="player-map-img" src="" alt="Mapa da Sessão" class="map-canvas-img hidden">
+                        <div id="player-map-stage" class="map-stage hidden">
+                            <img id="player-map-img" src="" alt="Mapa da Sessão" class="map-canvas-img" draggable="false">
+                            <div id="player-pins-layer" class="pins-layer"></div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Personagens / NPCs & Pistas / Itens Revelados -->
                 <div class="two-col-grid">
                     <div class="card">
                         <div class="section-header">
@@ -401,12 +453,47 @@
              ================================================================== -->
         <main id="master-view" class="main-content hidden">
 
-            <!-- ABA MESTRE 1: GERENCIADOR DE MAPAS (CANVA PNG/JPG) -->
+            <!-- ABA MESTRE 1: MAPA AO VIVO COM PINOS ARRASTÁVEIS + BIBLIOTECA DE MAPAS -->
             <section id="mpage-1" class="page-section">
                 <div class="card">
-                    <div class="card-tag">ESCUDO DO MESTRE // CONTROLE VISUAL</div>
+                    <div class="card-tag">ESCUDO DO MESTRE // TABULEIRO AO VIVO</div>
                     <div class="section-header">
-                        <h2 class="section-title red">ENVIAR NOVO MAPA (PNG / JPEG DO CANVA)</h2>
+                        <div>
+                            <h2 class="section-title red">TABULEIRO ATIVO &amp; PINOS ARRASTÁVEIS</h2>
+                            <span id="master-active-map-label" class="section-hint">Selecione ou libere um mapa abaixo para posicionar os pinos</span>
+                        </div>
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-success" onclick="syncPlayersToPins()">+ Puxar Jogadores como Pinos</button>
+                            <button type="button" class="btn btn-danger-outline" onclick="clearAllMapPins()">Limpar Pinos</button>
+                        </div>
+                    </div>
+
+                    <div class="pin-creator-bar">
+                        <input type="text" id="new-pin-label" class="input-control" placeholder="Nome do pino (ex: Infectado 01, Porta, Carro)">
+                        <select id="new-pin-color" class="input-control mono">
+                            <option value="#ef4444">Vermelho (Ameaça / Inimigo)</option>
+                            <option value="#10b981">Verde (Sobrevivente / Aliado)</option>
+                            <option value="#3b82f6">Azul (Jogador / Especial)</option>
+                            <option value="#f59e0b">Âmbar (Objetivo / Pista)</option>
+                            <option value="#a855f7">Roxo (Chefe / Anomalia)</option>
+                        </select>
+                        <button type="button" class="btn btn-primary" onclick="addCustomMapPin()">+ Colocar Pino no Mapa</button>
+                    </div>
+
+                    <div id="master-map-container" class="map-viewport" style="margin-top: 12px;">
+                        <div id="master-map-empty" class="empty-state-box">
+                            Nenhum mapa ativo na mesa no momento. Suba um mapa abaixo e clique em "Mostrar para Jogadores".
+                        </div>
+                        <div id="master-map-stage" class="map-stage hidden">
+                            <img id="master-map-img" src="" alt="Tabuleiro do Mestre" class="map-canvas-img" draggable="false">
+                            <div id="master-pins-layer" class="pins-layer"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="section-header">
+                        <h2 class="section-title">ENVIAR NOVO MAPA (PNG / JPEG DO CANVA)</h2>
                     </div>
 
                     <div class="master-upload-grid">
@@ -426,24 +513,53 @@
                             </button>
                         </div>
                     </div>
-                </div>
 
-                <!-- Lista de Mapas Salvos na Campanha -->
-                <div class="card">
-                    <div class="section-header">
-                        <h2 class="section-title">MAPAS DA CAMPANHA</h2>
-                        <span class="section-hint">Apenas 1 mapa fica ativo na tela dos jogadores por vez</span>
-                    </div>
-                    <div id="master-maps-list" class="master-maps-grid">
+                    <div id="master-maps-list" class="master-maps-grid" style="margin-top: 18px;">
                         <div class="empty-state-box">Nenhum mapa enviado ainda.</div>
                     </div>
                 </div>
             </section>
 
-            <!-- ABA MESTRE 2: CRIADOR DE NPCS E ITENS COM TOGGLE DE VISIBILIDADE -->
+            <!-- ABA MESTRE 2: CRIADOR DE NPCS, PISTAS & ENVIO DIRETO PARA MOCHILA -->
             <section id="mpage-2" class="page-section hidden">
+                <div class="card" style="border-top: 3px solid var(--accent-emerald);">
+                    <div class="section-header">
+                        <h2 class="section-title" style="color: #6ee7b7;">ENVIAR ITEM DIRETO PARA A MOCHILA DE UM JOGADOR</h2>
+                        <span class="section-hint">Cai na hora na ficha do jogador selecionado já com o peso calculado</span>
+                    </div>
+
+                    <div class="gift-item-grid">
+                        <div class="field-group">
+                            <label class="field-label" for="gift-target-player">Jogador Destinatário</label>
+                            <select id="gift-target-player" class="input-control mono">
+                                <option value="">Carregando jogadores...</option>
+                            </select>
+                        </div>
+
+                        <div class="field-group">
+                            <label class="field-label" for="gift-item-name">Nome do Item / Mochila</label>
+                            <input type="text" id="gift-item-name" class="input-control" placeholder="Ex: Mochila Tática ou Kit Médico">
+                        </div>
+
+                        <div class="field-group">
+                            <label class="field-label" for="gift-item-weight">Peso (negativo p/ mochila)</label>
+                            <input type="number" id="gift-item-weight" class="input-control mono" value="1" step="0.5" placeholder="Ex: 1 ou -5">
+                        </div>
+
+                        <div class="field-group">
+                            <label class="field-label" for="gift-item-desc">Descrição / Efeito</label>
+                            <input type="text" id="gift-item-desc" class="input-control" placeholder="Ex: Aumenta carga em +5 ou Cura 4 PV">
+                        </div>
+
+                        <div class="field-group" style="justify-content: flex-end;">
+                            <button type="button" class="btn btn-success" style="height: 42px;" onclick="sendItemDirectlyToPlayer()">
+                                <span>Enviar p/ Mochila</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="two-col-grid">
-                    <!-- Criar NPC / Personagem -->
                     <div class="card">
                         <div class="section-header">
                             <h2 class="section-title amber">CADASTRAR PERSONAGEM / NPC / CRIATURA</h2>
@@ -460,25 +576,23 @@
                         </div>
                     </div>
 
-                    <!-- Criar Item / Pista -->
                     <div class="card">
                         <div class="section-header">
-                            <h2 class="section-title blue">CADASTRAR ITEM / PISTA / DOCUMENTO</h2>
+                            <h2 class="section-title blue">CADASTRAR PISTA / DOCUMENTO NA MESA</h2>
                         </div>
                         <div class="fields-stack">
-                            <input type="text" id="item-name" class="input-control" placeholder="Nome (ex: Diário do Laboratório ou Chave Mestra)">
-                            <input type="text" id="item-role" class="input-control" placeholder="Tipo (ex: Pista / Suprimento / Arma)">
-                            <textarea id="item-desc" class="textarea-control" rows="3" placeholder="Texto da pista, efeito do item ou detalhes..."></textarea>
+                            <input type="text" id="item-name" class="input-control" placeholder="Nome (ex: Diário do Laboratório ou Bilhete Rasgado)">
+                            <input type="text" id="item-role" class="input-control" placeholder="Tipo (ex: Pista / Documento / Foto)">
+                            <textarea id="item-desc" class="textarea-control" rows="3" placeholder="Texto da pista ou detalhes que aparecem na Visão da Mesa..."></textarea>
                             <div class="field-group">
-                                <label class="field-label" for="item-image">Imagem do Item / Documento (Opcional)</label>
+                                <label class="field-label" for="item-image">Imagem do Documento (Opcional)</label>
                                 <input type="file" id="item-image" accept="image/*" class="input-control">
                             </div>
-                            <button type="button" class="btn btn-primary" onclick="createMasterCard('items')">Salvar Item (Oculto)</button>
+                            <button type="button" class="btn btn-primary" onclick="createMasterCard('items')">Salvar Pista (Oculto)</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Listas de Controle do Mestre -->
                 <div class="two-col-grid">
                     <div class="card">
                         <div class="section-header">
@@ -489,9 +603,64 @@
 
                     <div class="card">
                         <div class="section-header">
-                            <h2 class="section-title blue">ITENS &amp; PISTAS CADASTRADOS</h2>
+                            <h2 class="section-title blue">PISTAS &amp; DOCUMENTOS CADASTRADOS</h2>
                         </div>
                         <div id="master-items-list" class="cards-feed"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ABA MESTRE 5: JUKEBOX DE MÚSICAS LOCAIS DO MESTRE -->
+            <section id="mpage-5" class="page-section hidden">
+                <div class="card" style="border-top: 3px solid var(--accent-emerald);">
+                    <div class="card-tag">SONOPLASTIA LOCAL // ARQUIVOS DO APARELHO</div>
+                    <div class="section-header">
+                        <div>
+                            <h2 class="section-title" style="color: #6ee7b7;">ADICIONAR MÚSICA DO SEU CELULAR / PC</h2>
+                            <span class="section-hint">Selecione um arquivo .mp3, .ogg, .wav ou .m4a (máx. 8 MB por faixa) e dê um nome fácil</span>
+                        </div>
+                    </div>
+
+                    <div class="media-add-grid">
+                        <div class="field-group">
+                            <label class="field-label" for="media-name">Nome da Música / Ambiente</label>
+                            <input type="text" id="media-name" class="input-control" placeholder="Ex: Chuva e Trovões / Combate Horda">
+                        </div>
+
+                        <div class="field-group">
+                            <label class="field-label" for="media-file">Arquivo de Áudio (.mp3, .ogg, .wav, .m4a)</label>
+                            <input type="file" id="media-file" accept="audio/*" class="input-control">
+                        </div>
+
+                        <div class="field-group" style="justify-content: flex-end;">
+                            <button type="button" class="btn btn-primary" style="height: 44px;" onclick="uploadMasterAudioFile()">
+                                <span>+ Salvar na Biblioteca</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Painel de Transmissão Ativa do Mestre -->
+                    <div class="media-now-playing-bar">
+                        <div>
+                            <span class="section-hint">TOCANDO AGORA PARA TODOS OS JOGADORES:</span>
+                            <div style="margin-top: 4px;">
+                                <strong id="master-current-audio-name" style="color: #6ee7b7; font-size: 0.9rem;">Nenhuma música tocando</strong>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-danger-outline" onclick="stopActiveAudio()">Parar Música na Mesa</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lista de Músicas Salvas -->
+                <div class="card">
+                    <div class="section-header">
+                        <h2 class="section-title" style="color: #6ee7b7;">SUA BIBLIOTECA DE MÚSICAS DA CAMPANHA</h2>
+                        <span class="section-hint">Clique em "Tocar na Mesa" para disparar em loop para todos os jogadores</span>
+                    </div>
+                    <div id="master-audio-list" class="cards-feed">
+                        <div class="empty-state-box">Nenhuma música salva ainda. Suba suas faixas acima e dê nomes fáceis de usar durante a sessão.</div>
                     </div>
                 </div>
             </section>
@@ -505,6 +674,24 @@
                     </div>
                     <div id="master-players-overview" class="players-monitor-grid">
                         <div class="empty-state-box">Nenhum jogador conectado nesta campanha ainda.</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ABA MESTRE 4: BLOCOS DE NOTAS SECRETOS DO MESTRE -->
+            <section id="mpage-4" class="page-section hidden">
+                <div class="card" style="border-top: 3px solid var(--accent-amber);">
+                    <div class="card-tag">CONFIDENCIAL // ACESSO EXCLUSIVO DO MESTRE</div>
+                    <div class="section-header">
+                        <div>
+                            <h2 class="section-title amber">BLOCOS DE NOTAS SECRETOS DO MESTRE</h2>
+                            <span class="section-hint">Os jogadores nunca têm acesso a esta aba — salva automaticamente na nuvem</span>
+                        </div>
+                        <button type="button" class="btn btn-primary" onclick="createMasterSecretNote()">+ Novo Bloco Secreto</button>
+                    </div>
+
+                    <div id="master-notes-grid" class="notes-secret-grid">
+                        <div class="empty-state-box">Criando bloco de notas inicial...</div>
                     </div>
                 </div>
             </section>
