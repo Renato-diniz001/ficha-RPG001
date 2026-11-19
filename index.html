@@ -6,7 +6,7 @@
     <title>INFECÇÃO X — Ficha de Sobrevivente</title>
     <style>
         /* ==========================================================================
-           DESIGN TOKENS & PALETA APOCALÍPTICA (100% OFFLINE / SEM DEPENDÊNCIAS)
+           DESIGN TOKENS & PALETA APOCALÍPTICA (SINCRONIZAÇÃO NUVEM + FALLBACK OFFLINE)
            ========================================================================== */
         :root {
             --bg-main: #0d0f10;
@@ -34,7 +34,6 @@
             --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.45);
         }
 
-        /* Reset & Base */
         *, *::before, *::after {
             box-sizing: border-box;
             margin: 0;
@@ -58,7 +57,6 @@
             position: relative;
         }
 
-        /* Efeito sutil de scanline de terminal (opcional via botão) */
         .scanline-overlay {
             position: fixed;
             inset: 0;
@@ -78,21 +76,10 @@
             opacity: 0;
         }
 
-        /* Scrollbar personalizada */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: var(--bg-main);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: var(--border-metal);
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--border-highlight);
-        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-main); }
+        ::-webkit-scrollbar-thumb { background: var(--border-metal); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--border-highlight); }
 
         /* ==========================================================================
            CABEÇALHO & BARRA SUPERIOR DE AÇÕES
@@ -152,9 +139,7 @@
             line-height: 1.2;
         }
 
-        .brand-title span {
-            color: var(--accent-red);
-        }
+        .brand-title span { color: var(--accent-red); }
 
         .brand-subtitle {
             font-family: var(--font-mono);
@@ -162,6 +147,7 @@
             color: var(--text-secondary);
             letter-spacing: 0.05em;
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
             gap: 8px;
             margin-top: 2px;
@@ -179,16 +165,76 @@
             font-family: var(--font-mono);
             font-size: 0.7rem;
             font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .save-badge.syncing {
+            background-color: var(--accent-amber-soft);
+            border-color: rgba(217, 119, 6, 0.45);
+            color: #fbbf24;
+        }
+
+        .save-badge.offline {
+            background-color: var(--accent-red-soft);
+            border-color: rgba(220, 38, 38, 0.45);
+            color: #fca5a5;
         }
 
         .save-dot {
             width: 6px;
             height: 6px;
             border-radius: 50%;
-            background-color: var(--accent-emerald);
+            background-color: currentColor;
         }
 
-        /* Barra de Botões de Arquivo e Utilidades */
+        /* Barra de Código da Ficha Online */
+        .cloud-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-metal);
+            border-radius: var(--radius-md);
+            padding: 8px 12px;
+        }
+
+        .cloud-id-group {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            flex-grow: 1;
+        }
+
+        .cloud-label {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .cloud-input {
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-highlight);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            padding: 6px 10px;
+            width: 190px;
+            outline: none;
+        }
+
+        .cloud-input:focus {
+            border-color: var(--accent-red);
+        }
+
         .toolbar {
             display: flex;
             flex-wrap: wrap;
@@ -201,14 +247,14 @@
             align-items: center;
             justify-content: center;
             gap: 7px;
-            min-height: 38px;
-            padding: 8px 13px;
+            min-height: 36px;
+            padding: 7px 12px;
             border-radius: var(--radius-sm);
             border: 1px solid var(--border-metal);
             background-color: var(--bg-elevated);
             color: var(--text-primary);
             font-family: var(--font-mono);
-            font-size: 0.76rem;
+            font-size: 0.75rem;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.18s ease;
@@ -216,14 +262,8 @@
             text-decoration: none;
         }
 
-        .btn:hover {
-            border-color: var(--border-highlight);
-            background-color: #252a30;
-        }
-
-        .btn:active {
-            transform: scale(0.98);
-        }
+        .btn:hover { border-color: var(--border-highlight); background-color: #252a30; }
+        .btn:active { transform: scale(0.98); }
 
         .btn-primary {
             background-color: var(--accent-red);
@@ -232,10 +272,7 @@
             box-shadow: 0 2px 10px rgba(220, 38, 38, 0.3);
         }
 
-        .btn-primary:hover {
-            background-color: var(--accent-red-hover);
-            border-color: var(--accent-red-hover);
-        }
+        .btn-primary:hover { background-color: var(--accent-red-hover); border-color: var(--accent-red-hover); }
 
         .btn-danger-outline {
             color: #fca5a5;
@@ -249,12 +286,10 @@
             color: #ffffff;
         }
 
-        .btn-icon-only {
-            padding: 8px 10px;
-        }
+        .btn-icon-only { padding: 7px 10px; }
 
         /* ==========================================================================
-           NAVEGAÇÃO POR ABAS (PÁGINA 01 / PÁGINA 02)
+           NAVEGAÇÃO POR ABAS
            ========================================================================== */
         .tabs-bar {
             display: grid;
@@ -267,7 +302,7 @@
         }
 
         .tab-btn {
-            min-height: 40px;
+            min-height: 38px;
             padding: 8px 12px;
             border: 1px solid transparent;
             border-radius: var(--radius-sm);
@@ -286,10 +321,7 @@
             transition: all 0.2s ease;
         }
 
-        .tab-btn:hover {
-            color: var(--text-primary);
-            background-color: rgba(255, 255, 255, 0.03);
-        }
+        .tab-btn:hover { color: var(--text-primary); background-color: rgba(255, 255, 255, 0.03); }
 
         .tab-btn.active {
             background-color: var(--accent-red);
@@ -316,9 +348,7 @@
             animation: fadeIn 0.22s ease;
         }
 
-        .page-section.hidden {
-            display: none;
-        }
+        .page-section.hidden { display: none; }
 
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(4px); }
@@ -385,7 +415,7 @@
         }
 
         /* ==========================================================================
-           IDENTIFICAÇÃO & AVATAR DO SOBREVIVENTE
+           IDENTIFICAÇÃO & AVATAR
            ========================================================================== */
         .identity-layout {
             display: grid;
@@ -424,21 +454,9 @@
             transition: border-color 0.2s ease, transform 0.15s ease;
         }
 
-        .avatar-box:hover {
-            border-color: var(--accent-red);
-        }
-
-        .avatar-box.has-image {
-            border-style: solid;
-            border-color: var(--border-metal);
-        }
-
-        .avatar-box img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
+        .avatar-box:hover { border-color: var(--accent-red); }
+        .avatar-box.has-image { border-style: solid; border-color: var(--border-metal); }
+        .avatar-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
         .avatar-placeholder {
             display: flex;
@@ -483,18 +501,9 @@
             transition: all 0.15s ease;
         }
 
-        .btn-mini:hover {
-            color: var(--text-primary);
-            border-color: var(--border-highlight);
-        }
+        .btn-mini:hover { color: var(--text-primary); border-color: var(--border-highlight); }
+        .btn-mini.danger:hover { color: #fca5a5; border-color: var(--accent-red); background-color: var(--accent-red-soft); }
 
-        .btn-mini.danger:hover {
-            color: #fca5a5;
-            border-color: var(--accent-red);
-            background-color: var(--accent-red-soft);
-        }
-
-        /* Grade de Inputs Pessoais */
         .fields-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -502,9 +511,7 @@
         }
 
         @media (min-width: 640px) {
-            .fields-grid {
-                grid-template-columns: repeat(12, 1fr);
-            }
+            .fields-grid { grid-template-columns: repeat(12, 1fr); }
             .col-7 { grid-column: span 7; }
             .col-5 { grid-column: span 5; }
             .col-6 { grid-column: span 6; }
@@ -547,9 +554,7 @@
             box-shadow: 0 0 0 2px var(--accent-red-soft);
         }
 
-        .input-control::placeholder, .textarea-control::placeholder {
-            color: var(--text-muted);
-        }
+        .input-control::placeholder, .textarea-control::placeholder { color: var(--text-muted); }
 
         .textarea-control {
             resize: vertical;
@@ -558,7 +563,7 @@
         }
 
         /* ==========================================================================
-           MEDIDORES PRINCIPAIS NO TOPO (VITALIDADE, MENTAL, PONTOS NARRATIVOS)
+           MEDIDORES & ATRIBUTOS
            ========================================================================== */
         .meters-grid {
             display: grid;
@@ -570,9 +575,7 @@
         }
 
         @media (min-width: 768px) {
-            .meters-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
+            .meters-grid { grid-template-columns: repeat(3, 1fr); }
         }
 
         .meter-card {
@@ -589,11 +592,7 @@
         .meter-card.mental { border-top: 3px solid var(--accent-amber); }
         .meter-card.pn { border-top: 3px solid var(--accent-blue); }
 
-        .meter-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
+        .meter-header { display: flex; align-items: center; justify-content: space-between; }
 
         .meter-title {
             font-family: var(--font-mono);
@@ -610,11 +609,7 @@
         .meter-card.mental .meter-title { color: #fbbf24; }
         .meter-card.pn .meter-title { color: #60a5fa; }
 
-        .stepper-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+        .stepper-row { display: flex; align-items: center; gap: 8px; }
 
         .step-btn {
             width: 44px;
@@ -635,24 +630,10 @@
             user-select: none;
         }
 
-        .step-btn:hover {
-            background-color: #282d34;
-            border-color: var(--border-highlight);
-        }
-
-        .step-btn:active {
-            transform: scale(0.95);
-        }
-
-        .step-btn.minus:hover {
-            border-color: var(--accent-red);
-            color: #fca5a5;
-        }
-
-        .step-btn.plus:hover {
-            border-color: var(--accent-emerald);
-            color: #6ee7b7;
-        }
+        .step-btn:hover { background-color: #282d34; border-color: var(--border-highlight); }
+        .step-btn:active { transform: scale(0.95); }
+        .step-btn.minus:hover { border-color: var(--accent-red); color: #fca5a5; }
+        .step-btn.plus:hover { border-color: var(--accent-emerald); color: #6ee7b7; }
 
         .meter-input {
             width: 100%;
@@ -668,13 +649,8 @@
             outline: none;
         }
 
-        .meter-input:focus {
-            border-color: var(--accent-red);
-        }
+        .meter-input:focus { border-color: var(--accent-red); }
 
-        /* ==========================================================================
-           ATRIBUTOS PRINCIPAIS (INSTINTO, MENTE, CORPO)
-           ========================================================================== */
         .attributes-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -682,9 +658,7 @@
         }
 
         @media (min-width: 640px) {
-            .attributes-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
+            .attributes-grid { grid-template-columns: repeat(3, 1fr); }
         }
 
         .attr-card {
@@ -708,55 +682,19 @@
             color: var(--text-primary);
         }
 
-        .attr-desc {
-            font-size: 0.74rem;
-            color: var(--text-muted);
-            margin-top: -6px;
-        }
+        .attr-desc { font-size: 0.74rem; color: var(--text-muted); margin-top: -6px; }
+        .attr-controls { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 190px; }
 
-        .attr-controls {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            width: 100%;
-            max-width: 190px;
-        }
+        .three-col-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+        @media (min-width: 820px) { .three-col-grid { grid-template-columns: repeat(3, 1fr); } }
+
+        .two-col-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+        @media (min-width: 768px) { .two-col-grid { grid-template-columns: repeat(2, 1fr); } }
 
         /* ==========================================================================
-           GRADE DE CAMPOS NARRATIVOS & CONDIÇÕES
+           MOCHILA / ITENS DINÂMICOS
            ========================================================================== */
-        .three-col-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 16px;
-        }
-
-        @media (min-width: 820px) {
-            .three-col-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
-        }
-
-        .two-col-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 16px;
-        }
-
-        @media (min-width: 768px) {
-            .two-col-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        /* ==========================================================================
-           MOCHILA / ITENS DINÂMICOS (PÁGINA 02)
-           ========================================================================== */
-        .backpack-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
+        .backpack-list { display: flex; flex-direction: column; gap: 12px; }
 
         .backpack-empty {
             background-color: var(--bg-input);
@@ -783,10 +721,7 @@
         }
 
         @media (min-width: 720px) {
-            .item-row {
-                grid-template-columns: 240px 1fr 44px;
-                align-items: center;
-            }
+            .item-row { grid-template-columns: 240px 1fr 44px; align-items: center; }
         }
 
         .item-remove-btn {
@@ -807,20 +742,11 @@
             transition: all 0.15s ease;
         }
 
-        .item-remove-btn:hover {
-            background-color: var(--accent-red);
-            border-color: var(--accent-red);
-            color: #ffffff;
-        }
-
-        @media (min-width: 720px) {
-            .item-remove-btn span {
-                display: none;
-            }
-        }
+        .item-remove-btn:hover { background-color: var(--accent-red); border-color: var(--accent-red); color: #ffffff; }
+        @media (min-width: 720px) { .item-remove-btn span { display: none; } }
 
         /* ==========================================================================
-           RODAPÉ DA PÁGINA & NOTIFICAÇÕES (TOAST / MODAL)
+           RODAPÉ, TOAST & MODAL
            ========================================================================== */
         .page-quote-bar {
             background-color: var(--bg-card);
@@ -836,17 +762,8 @@
             font-size: 0.75rem;
         }
 
-        .quote-text {
-            color: #f87171;
-            font-weight: 700;
-            font-style: italic;
-            letter-spacing: 0.04em;
-        }
-
-        .quote-page {
-            color: var(--text-secondary);
-            font-weight: 700;
-        }
+        .quote-text { color: #f87171; font-weight: 700; font-style: italic; letter-spacing: 0.04em; }
+        .quote-page { color: var(--text-secondary); font-weight: 700; }
 
         .app-footer {
             border-top: 1px solid var(--border-metal);
@@ -858,13 +775,12 @@
             color: var(--text-muted);
         }
 
-        /* Toast Flutuante */
         .toast {
             position: fixed;
             bottom: 20px;
             right: 20px;
             left: 20px;
-            max-width: 400px;
+            max-width: 420px;
             margin-left: auto;
             z-index: 100;
             background-color: var(--bg-elevated);
@@ -884,18 +800,9 @@
             transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        .toast.show {
-            transform: translateY(0);
-            opacity: 1;
-        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast-icon { color: var(--accent-red); flex-shrink: 0; display: flex; }
 
-        .toast-icon {
-            color: var(--accent-red);
-            flex-shrink: 0;
-            display: flex;
-        }
-
-        /* Modal de Confirmação */
         .modal-backdrop {
             position: fixed;
             inset: 0;
@@ -908,9 +815,7 @@
             padding: 16px;
         }
 
-        .modal-backdrop.hidden {
-            display: none;
-        }
+        .modal-backdrop.hidden { display: none; }
 
         .modal-card {
             background-color: var(--bg-card);
@@ -936,41 +841,17 @@
             margin: 0 auto 14px;
         }
 
-        .modal-title {
-            font-size: 1.05rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            margin-bottom: 8px;
-        }
+        .modal-title { font-size: 1.05rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
+        .modal-desc { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 20px; }
+        .modal-actions { display: flex; gap: 10px; justify-content: center; }
 
-        .modal-desc {
-            font-family: var(--font-mono);
-            font-size: 0.78rem;
-            color: var(--text-secondary);
-            margin-bottom: 20px;
-        }
-
-        .modal-actions {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-        }
-
-        /* Oculta inputs numéricos nativos setinhas duplicadas */
         input[type="number"]::-webkit-inner-spin-button,
-        input[type="number"]::-webkit-outer-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-        input[type="number"] {
-            -moz-appearance: textfield;
-        }
+        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; }
     </style>
 </head>
 <body>
 
-    <!-- Efeito visual de scanline -->
     <div id="scanline-overlay" class="scanline-overlay"></div>
 
     <!-- ======================================================================
@@ -979,10 +860,8 @@
     <header class="app-header">
         <div class="header-container">
             <div class="header-top-row">
-                <!-- Identidade Visual -->
                 <div class="brand-group">
                     <div class="brand-icon" aria-hidden="true">
-                        <!-- Ícone Risco Biológico SVG -->
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="2.2"/>
                             <path d="M12 3a5.5 5.5 0 0 0-4.76 8.25"/>
@@ -996,40 +875,30 @@
                     <div>
                         <h1 class="brand-title">INFECÇÃO <span>X</span> — FICHA DE SOBREVIVENTE</h1>
                         <div class="brand-subtitle">
-                            <span id="file-label">REGISTRO PESSOAL</span>
+                            <span id="file-label">NUVEM ATIVA</span>
                             <span id="save-badge" class="save-badge">
                                 <span class="save-dot"></span>
-                                <span id="save-status-text">Salvo localmente</span>
+                                <span id="save-status-text">Conectando...</span>
                             </span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Barra de Ferramentas de Arquivos & Offline -->
                 <div class="toolbar">
-                    <button type="button" class="btn btn-primary" onclick="saveFichaFile()" title="Salvar arquivo .json em uma pasta do dispositivo">
+                    <button type="button" class="btn btn-primary" onclick="saveFichaFile()" title="Exportar backup .json para o dispositivo">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
                             <polyline points="17 21 17 13 7 13 7 21"/>
                             <polyline points="7 3 7 8 15 8"/>
                         </svg>
-                        <span>Salvar Ficha</span>
+                        <span>Backup (.json)</span>
                     </button>
 
-                    <button type="button" class="btn" onclick="loadFichaFile()" title="Carregar arquivo .json salvo no dispositivo">
+                    <button type="button" class="btn" onclick="loadFichaFile()" title="Importar backup .json e enviar para a nuvem">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
                         </svg>
-                        <span>Carregar Ficha</span>
-                    </button>
-
-                    <button type="button" class="btn" onclick="downloadOfflineApp()" title="Baixar este aplicativo HTML completo para usar 100% offline no celular">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                            <polyline points="7 10 12 15 17 10"/>
-                            <line x1="12" y1="15" x2="12" y2="3"/>
-                        </svg>
-                        <span>Baixar App Offline (.html)</span>
+                        <span>Carregar (.json)</span>
                     </button>
 
                     <button type="button" class="btn btn-icon-only" onclick="toggleScanlines()" title="Alternar efeito visual de scanline">
@@ -1040,7 +909,7 @@
                         </svg>
                     </button>
 
-                    <button type="button" class="btn btn-danger-outline" onclick="openResetModal()" title="Apagar todos os dados da ficha">
+                    <button type="button" class="btn btn-danger-outline" onclick="openResetModal()" title="Apagar todos os dados desta ficha na nuvem">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="3 6 5 6 21 6"/>
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -1048,9 +917,29 @@
                         <span>Limpar Ficha</span>
                     </button>
 
-                    <!-- Input oculto de fallback para abrir JSON em qualquer navegador -->
                     <input type="file" id="json-file-input" accept=".json,application/json" style="display: none;" onchange="handleFallbackJsonUpload(event)">
                 </div>
+            </div>
+
+            <!-- Barra de Sincronização Online por Código da Ficha -->
+            <div class="cloud-bar">
+                <div class="cloud-id-group">
+                    <label class="cloud-label" for="cloud-sheet-id">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                            <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+                        </svg>
+                        <span>Código da Ficha Online:</span>
+                    </label>
+                    <input type="text" id="cloud-sheet-id" class="cloud-input" placeholder="ex: renato-01" onkeydown="if(event.key==='Enter') changeCloudSheet()">
+                    <button type="button" class="btn" onclick="changeCloudSheet()">Abrir / Criar</button>
+                </div>
+                <button type="button" class="btn" onclick="copyShareLink()" title="Copiar link direto desta ficha para abrir no celular ou enviar ao mestre">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                    <span>Copiar Link da Ficha</span>
+                </button>
             </div>
 
             <!-- Navegação entre Página 01 e Página 02 -->
@@ -1082,17 +971,12 @@
          ====================================================================== -->
     <main class="main-content">
 
-        <!-- ==================================================================
-             PÁGINA 01/02 — REGISTRO PESSOAL / ZONA DE CONTAMINAÇÃO
-             ================================================================== -->
+        <!-- PÁGINA 01/02 -->
         <section id="page-1" class="page-section" aria-label="Página 01 - Registro Pessoal">
-
-            <!-- Bloco 1: Foto do Personagem, Identificação e Medidores Principais -->
             <div class="card">
                 <div class="card-tag">ZONA DE CONTAMINAÇÃO // ARQUIVO 01</div>
 
                 <div class="identity-layout">
-                    <!-- Avatar / Foto do Personagem -->
                     <div class="avatar-wrapper">
                         <div id="avatar-box" class="avatar-box" onclick="triggerAvatarInput()" role="button" tabindex="0" aria-label="Selecionar foto do personagem">
                             <img id="avatar-img" src="" alt="Foto do Sobrevivente" style="display: none;">
@@ -1124,7 +1008,6 @@
                         </div>
                     </div>
 
-                    <!-- Campos de Identificação -->
                     <div class="fields-grid">
                         <div class="field-group col-7">
                             <label class="field-label" for="field-nome">Nome</label>
@@ -1153,9 +1036,8 @@
                     </div>
                 </div>
 
-                <!-- Medidores Principais no Topo: VITALIDADE, MENTAL e PONTOS NARRATIVOS (PN) -->
+                <!-- Medidores Principais -->
                 <div class="meters-grid">
-                    <!-- Vitalidade -->
                     <div class="meter-card vitalidade">
                         <div class="meter-header">
                             <span class="meter-title">
@@ -1172,7 +1054,6 @@
                         </div>
                     </div>
 
-                    <!-- Mental -->
                     <div class="meter-card mental">
                         <div class="meter-header">
                             <span class="meter-title">
@@ -1190,7 +1071,6 @@
                         </div>
                     </div>
 
-                    <!-- Pontos Narrativos (PN) -->
                     <div class="meter-card pn">
                         <div class="meter-header">
                             <span class="meter-title">
@@ -1209,7 +1089,7 @@
                 </div>
             </div>
 
-            <!-- Bloco 2: Atributos Principais (Instinto, Mente, Corpo) -->
+            <!-- Atributos Principais -->
             <div class="card">
                 <div class="section-header">
                     <h2 class="section-title red">
@@ -1224,7 +1104,6 @@
                 </div>
 
                 <div class="attributes-grid">
-                    <!-- INSTINTO -->
                     <div class="attr-card">
                         <div class="attr-name">INSTINTO</div>
                         <div class="attr-desc">Reflexos, percepção e sobrevivência</div>
@@ -1235,7 +1114,6 @@
                         </div>
                     </div>
 
-                    <!-- MENTE -->
                     <div class="attr-card">
                         <div class="attr-name">MENTE</div>
                         <div class="attr-desc">Raciocínio, conhecimento e autocontrole</div>
@@ -1246,7 +1124,6 @@
                         </div>
                     </div>
 
-                    <!-- CORPO -->
                     <div class="attr-card">
                         <div class="attr-name">CORPO</div>
                         <div class="attr-desc">Força física, vigor e resistência</div>
@@ -1259,7 +1136,7 @@
                 </div>
             </div>
 
-            <!-- Bloco 3: Campos Narrativos (Traumas/Fobias, Vínculos, Personalidade) -->
+            <!-- Campos Narrativos -->
             <div class="three-col-grid">
                 <div class="card">
                     <div class="section-header">
@@ -1304,19 +1181,14 @@
                 </div>
             </div>
 
-            <!-- Rodapé Página 01 -->
             <div class="page-quote-bar">
                 <span class="quote-text">"NINGUÉM SOBREVIVE SOZINHO. CUIDE DO QUE AINDA RESTA."</span>
                 <span class="quote-page">PÁGINA 01/02</span>
             </div>
         </section>
 
-        <!-- ==================================================================
-             PÁGINA 02/02 — CONDIÇÕES E RECURSOS / ANOTAÇÕES DE CAMPO
-             ================================================================== -->
+        <!-- PÁGINA 02/02 -->
         <section id="page-2" class="page-section hidden" aria-label="Página 02 - Condições e Recursos">
-
-            <!-- Bloco 1: Condições Físicas & Equipamentos -->
             <div class="three-col-grid">
                 <div class="card">
                     <div class="section-header">
@@ -1359,7 +1231,7 @@
                 </div>
             </div>
 
-            <!-- Bloco 2: Seção Dinâmica MOCHILA / ITENS -->
+            <!-- Mochila -->
             <div class="card">
                 <div class="section-header">
                     <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
@@ -1383,12 +1255,10 @@
                     </button>
                 </div>
 
-                <div id="backpack-list" class="backpack-list">
-                    <!-- Os itens dinâmicos da mochila são renderizados aqui via JS -->
-                </div>
+                <div id="backpack-list" class="backpack-list"></div>
             </div>
 
-            <!-- Bloco 3: Habilidades Narrativas & Atos de Insanidade -->
+            <!-- Habilidades & Insanidade -->
             <div class="two-col-grid">
                 <div class="card">
                     <div class="section-header">
@@ -1417,7 +1287,6 @@
                 </div>
             </div>
 
-            <!-- Rodapé Página 02 -->
             <div class="page-quote-bar">
                 <span class="quote-text">"CADA CICATRIZ CONTA UMA HISTÓRIA. NEM TODAS TERMINAM BEM."</span>
                 <span class="quote-page">PÁGINA 02/02</span>
@@ -1426,16 +1295,11 @@
 
     </main>
 
-    <!-- ======================================================================
-         RODAPÉ GERAL
-         ====================================================================== -->
     <footer class="app-footer">
-        INFECÇÃO X RPG &bull; Ficha Interativa 100% Offline &bull; Salvamento Automático Ativo
+        INFECÇÃO X RPG &bull; Sincronização Automática em Nuvem (Firebase) &bull; Backup Local Ativo
     </footer>
 
-    <!-- ======================================================================
-         NOTIFICAÇÃO TOAST
-         ====================================================================== -->
+    <!-- Toast -->
     <div id="toast" class="toast" role="status" aria-live="polite">
         <span class="toast-icon">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -1447,9 +1311,7 @@
         <span id="toast-msg">Ação concluída.</span>
     </div>
 
-    <!-- ======================================================================
-         MODAL DE CONFIRMAÇÃO PARA LIMPAR FICHA
-         ====================================================================== -->
+    <!-- Modal de Confirmação -->
     <div id="reset-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <div class="modal-card">
             <div class="modal-icon">
@@ -1460,7 +1322,7 @@
                 </svg>
             </div>
             <h3 id="modal-title" class="modal-title">Limpar Toda a Ficha?</h3>
-            <p class="modal-desc">Todos os campos, foto do personagem, atributos e itens da mochila serão apagados permanentemente deste navegador.</p>
+            <p class="modal-desc">Todos os campos, foto do personagem, atributos e itens da mochila desta ficha serão apagados tanto na nuvem quanto neste aparelho.</p>
             <div class="modal-actions">
                 <button type="button" class="btn" onclick="closeResetModal()">Cancelar</button>
                 <button type="button" class="btn btn-primary" onclick="confirmResetFicha()">Sim, Limpar Tudo</button>
@@ -1469,15 +1331,29 @@
     </div>
 
     <!-- ======================================================================
-         LÓGICA COMPLETA EM JAVASCRIPT PURO (ESTADO, AVATAR, MOCHILA & ARQUIVOS)
+         FIREBASE SDK (REALTIME DATABASE) + LÓGICA DA FICHA
          ====================================================================== -->
-    <script>
-        const STORAGE_KEY = 'infeccao_x_sobrevivente_v2';
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
-        // Estado global da ficha
+    <script>
+        // ======================================================================
+        // 1. COLE AQUI A URL DO SEU FIREBASE REALTIME DATABASE:
+        // Exemplo: "https://ficha-infeccao-x-default-rtdb.firebaseio.com"
+        // ======================================================================
+        const FIREBASE_DATABASE_URL = "https://ficha-infeccao-x-default-rtdb.firebaseio.com/";
+
+        const STORAGE_PREFIX = 'infeccao_x_v3_';
+        let currentSheetId = 'sobrevivente-01';
+        let db = null;
+        let currentDbRef = null;
+        let cloudSaveTimer = null;
+        let isApplyingRemoteUpdate = false;
+        let toastTimer = null;
+
         function createDefaultState() {
             return {
-                version: 2,
+                version: 3,
                 avatar: '',
                 nome: '',
                 origem: '',
@@ -1498,15 +1374,13 @@
                 equipamentos: '',
                 mochila: [],
                 habilidades: '',
-                insanidade: ''
+                insanidade: '',
+                updatedAt: Date.now()
             };
         }
 
         let fichaState = createDefaultState();
-        let toastTimer = null;
-        let saveBadgeTimer = null;
 
-        // Mapeamento dos campos simples (IDs -> chaves no estado)
         const TEXT_FIELDS = [
             'nome', 'origem', 'idade', 'nascimento', 'apelido',
             'traumas', 'vinculos', 'personalidade',
@@ -1520,7 +1394,172 @@
         ];
 
         // ======================================================================
-        // NAVEGAÇÃO ENTRE ABAS
+        // INICIALIZAÇÃO DO FIREBASE & IDENTIFICADOR DA FICHA
+        // ======================================================================
+        function sanitizeSheetId(raw) {
+            const clean = String(raw || '')
+                .trim()
+                .toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9_-]+/g, '-')
+                .replace(/^-+|-+$/g, '');
+            return clean || 'sobrevivente-01';
+        }
+
+        function resolveInitialSheetId() {
+            const params = new URLSearchParams(window.location.search);
+            const fromUrl = params.get('ficha');
+            const fromStorage = localStorage.getItem('infeccao_x_last_sheet_id');
+            return sanitizeSheetId(fromUrl || fromStorage || 'sobrevivente-01');
+        }
+
+        function updateUrlParam(sheetId) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('ficha', sheetId);
+            window.history.replaceState({}, '', url.toString());
+            localStorage.setItem('infeccao_x_last_sheet_id', sheetId);
+        }
+
+        function setSyncStatus(mode, text) {
+            const badge = document.getElementById('save-badge');
+            const label = document.getElementById('save-status-text');
+            badge.classList.remove('syncing', 'offline');
+            if (mode === 'syncing') badge.classList.add('syncing');
+            if (mode === 'offline') badge.classList.add('offline');
+            label.textContent = text;
+        }
+
+        function initFirebase() {
+            if (!FIREBASE_DATABASE_URL || FIREBASE_DATABASE_URL.includes('COLE_AQUI')) {
+                setSyncStatus('offline', 'Falta configurar URL Firebase');
+                return false;
+            }
+            try {
+                firebase.initializeApp({ databaseURL: FIREBASE_DATABASE_URL });
+                db = firebase.database();
+
+                // Monitora status da conexão em tempo real
+                db.ref('.info/connected').on('value', (snap) => {
+                    if (snap.val() === true) {
+                        setSyncStatus('online', 'Sincronizado na nuvem');
+                    } else {
+                        setSyncStatus('offline', 'Offline (salvo local)');
+                    }
+                });
+                return true;
+            } catch (err) {
+                console.error('Erro ao iniciar Firebase:', err);
+                setSyncStatus('offline', 'Erro na nuvem (salvo local)');
+                return false;
+            }
+        }
+
+        function connectToSheet(sheetId) {
+            currentSheetId = sanitizeSheetId(sheetId);
+            document.getElementById('cloud-sheet-id').value = currentSheetId;
+            document.getElementById('file-label').textContent = `FICHA: ${currentSheetId.toUpperCase()}`;
+            updateUrlParam(currentSheetId);
+
+            // 1. Carrega primeiro do cache local desse ID para abertura instantânea
+            loadLocalCache(currentSheetId);
+
+            // 2. Conecta no nó correspondente do Firebase Realtime Database
+            if (!db) return;
+
+            if (currentDbRef) {
+                currentDbRef.off();
+            }
+
+            setSyncStatus('syncing', 'Carregando da nuvem...');
+            currentDbRef = db.ref('fichas/' + currentSheetId);
+
+            currentDbRef.on('value', (snapshot) => {
+                const remoteData = snapshot.val();
+                if (remoteData && typeof remoteData === 'object') {
+                    isApplyingRemoteUpdate = true;
+                    fichaState = normalizeImportedData(remoteData);
+                    saveLocalCache(currentSheetId, fichaState);
+                    renderStateToDOM();
+                    isApplyingRemoteUpdate = false;
+                    setSyncStatus('online', 'Sincronizado na nuvem');
+                } else {
+                    // Se ainda não existe na nuvem, envia o estado atual para criar
+                    pushToFirebaseNow();
+                }
+            }, (err) => {
+                console.error('Erro de leitura Firebase:', err);
+                setSyncStatus('offline', 'Sem permissão/offline');
+            });
+        }
+
+        function changeCloudSheet() {
+            const input = document.getElementById('cloud-sheet-id');
+            const newId = sanitizeSheetId(input.value);
+            if (newId === currentSheetId) return;
+            connectToSheet(newId);
+            showToast(`Ficha ativa: ${newId}`);
+        }
+
+        function copyShareLink() {
+            const url = new URL(window.location.href);
+            url.searchParams.set('ficha', currentSheetId);
+            navigator.clipboard.writeText(url.toString()).then(() => {
+                showToast(`Link da ficha "${currentSheetId}" copiado!`);
+            }).catch(() => {
+                showToast('Copie o endereço da barra do navegador.');
+            });
+        }
+
+        // ======================================================================
+        // SALVAMENTO AUTOMÁTICO (LOCAL + NUVEM COM DEBOUNCE)
+        // ======================================================================
+        function scheduleSave() {
+            if (isApplyingRemoteUpdate) return;
+            fichaState.updatedAt = Date.now();
+            saveLocalCache(currentSheetId, fichaState);
+
+            if (!currentDbRef) return;
+            setSyncStatus('syncing', 'Salvando na nuvem...');
+            clearTimeout(cloudSaveTimer);
+            cloudSaveTimer = setTimeout(() => {
+                pushToFirebaseNow();
+            }, 500);
+        }
+
+        function pushToFirebaseNow() {
+            if (!currentDbRef) return;
+            // Firebase não aceita undefined; garante objeto limpo
+            const payload = JSON.parse(JSON.stringify(fichaState));
+            currentDbRef.set(payload)
+                .then(() => {
+                    setSyncStatus('online', 'Salvo na nuvem');
+                })
+                .catch((err) => {
+                    console.error('Erro ao salvar no Firebase:', err);
+                    setSyncStatus('offline', 'Erro ao enviar (salvo local)');
+                });
+        }
+
+        function saveLocalCache(sheetId, state) {
+            try {
+                localStorage.setItem(STORAGE_PREFIX + sheetId, JSON.stringify(state));
+            } catch (err) {
+                console.warn('Cache local cheio:', err);
+            }
+        }
+
+        function loadLocalCache(sheetId) {
+            try {
+                const raw = localStorage.getItem(STORAGE_PREFIX + sheetId);
+                fichaState = raw ? normalizeImportedData(JSON.parse(raw)) : createDefaultState();
+            } catch (err) {
+                fichaState = createDefaultState();
+            }
+            renderStateToDOM();
+        }
+
+        // ======================================================================
+        // NAVEGAÇÃO ENTRE ABAS & EFEITOS
         // ======================================================================
         function switchPage(pageNumber) {
             const page1 = document.getElementById('page-1');
@@ -1550,7 +1589,7 @@
         }
 
         // ======================================================================
-        // CONTROLES NUMÉRICOS (+ / -) E SINCRONIZAÇÃO DE ESTADO
+        // CONTROLES DE CAMPOS E RENDERIZAÇÃO
         // ======================================================================
         function adjustNumberField(fieldName, delta) {
             const input = document.getElementById('field-' + fieldName);
@@ -1559,7 +1598,7 @@
             const next = Math.max(0, current + delta);
             input.value = next;
             fichaState[fieldName] = next;
-            saveToLocalStorage();
+            scheduleSave();
         }
 
         function handleFieldChange() {
@@ -1576,31 +1615,32 @@
                 }
             });
 
-            saveToLocalStorage();
+            scheduleSave();
         }
 
         function renderStateToDOM() {
-            // Textos e Textareas
+            const activeEl = document.activeElement;
+
             TEXT_FIELDS.forEach(key => {
                 const el = document.getElementById('field-' + key);
-                if (el) el.value = fichaState[key] || '';
+                if (el && el !== activeEl) {
+                    el.value = fichaState[key] || '';
+                }
             });
 
-            // Números (Medidores e Atributos)
             NUMBER_FIELDS.forEach(key => {
                 const el = document.getElementById('field-' + key);
-                if (el) el.value = (fichaState[key] !== undefined && fichaState[key] !== null) ? fichaState[key] : 0;
+                if (el && el !== activeEl) {
+                    el.value = (fichaState[key] !== undefined && fichaState[key] !== null) ? fichaState[key] : 0;
+                }
             });
 
-            // Avatar
             updateAvatarUI();
-
-            // Mochila
             renderBackpack();
         }
 
         // ======================================================================
-        // FOTO DO PERSONAGEM (COMPRIMIDA VIA CANVAS HTML5)
+        // FOTO DO PERSONAGEM (COMPRIMIDA EM BASE64 PARA NUVEM)
         // ======================================================================
         function triggerAvatarInput() {
             document.getElementById('avatar-file-input').click();
@@ -1614,21 +1654,16 @@
             reader.onload = function(e) {
                 const img = new Image();
                 img.onload = function() {
-                    // Redimensionar para no máximo 320x320 mantendo proporção
-                    const MAX_SIZE = 320;
+                    const MAX_SIZE = 280;
                     let width = img.width;
                     let height = img.height;
 
-                    if (width > height) {
-                        if (width > MAX_SIZE) {
-                            height = Math.round(height * (MAX_SIZE / width));
-                            width = MAX_SIZE;
-                        }
-                    } else {
-                        if (height > MAX_SIZE) {
-                            width = Math.round(width * (MAX_SIZE / height));
-                            height = MAX_SIZE;
-                        }
+                    if (width > height && width > MAX_SIZE) {
+                        height = Math.round(height * (MAX_SIZE / width));
+                        width = MAX_SIZE;
+                    } else if (height > MAX_SIZE) {
+                        width = Math.round(width * (MAX_SIZE / height));
+                        height = MAX_SIZE;
                     }
 
                     const canvas = document.createElement('canvas');
@@ -1637,11 +1672,10 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
 
-                    // Exportar como JPEG leve em Base64
-                    fichaState.avatar = canvas.toDataURL('image/jpeg', 0.8);
+                    fichaState.avatar = canvas.toDataURL('image/jpeg', 0.75);
                     updateAvatarUI();
-                    saveToLocalStorage();
-                    showToast('Foto do sobrevivente atualizada!');
+                    scheduleSave();
+                    showToast('Foto sincronizada na nuvem!');
                 };
                 img.src = e.target.result;
             };
@@ -1652,7 +1686,7 @@
         function removeAvatar() {
             fichaState.avatar = '';
             updateAvatarUI();
-            saveToLocalStorage();
+            scheduleSave();
             showToast('Foto removida.');
         }
 
@@ -1685,18 +1719,11 @@
         }
 
         function addBackpackItem() {
-            if (!Array.isArray(fichaState.mochila)) {
-                fichaState.mochila = [];
-            }
-            fichaState.mochila.push({
-                id: generateItemId(),
-                nome: '',
-                descricao: ''
-            });
+            if (!Array.isArray(fichaState.mochila)) fichaState.mochila = [];
+            fichaState.mochila.push({ id: generateItemId(), nome: '', descricao: '' });
             renderBackpack();
-            saveToLocalStorage();
+            scheduleSave();
 
-            // Focar no campo de nome do item recém-criado
             const list = document.getElementById('backpack-list');
             const lastInput = list.querySelector('.item-row:last-child input');
             if (lastInput) lastInput.focus();
@@ -1706,14 +1733,14 @@
             const item = fichaState.mochila.find(it => it.id === id);
             if (item) {
                 item[key] = value;
-                saveToLocalStorage();
+                scheduleSave();
             }
         }
 
         function removeBackpackItem(id) {
             fichaState.mochila = fichaState.mochila.filter(it => it.id !== id);
             renderBackpack();
-            saveToLocalStorage();
+            scheduleSave();
             showToast('Item removido da mochila.');
         }
 
@@ -1723,6 +1750,12 @@
             const items = Array.isArray(fichaState.mochila) ? fichaState.mochila : [];
 
             countEl.textContent = items.length === 1 ? '(1 item)' : `(${items.length} itens)`;
+
+            // Evita recriar inputs enquanto o usuário está digitando dentro da mochila
+            if (listEl.contains(document.activeElement) && listEl.children.length === items.length) {
+                return;
+            }
+
             listEl.innerHTML = '';
 
             if (items.length === 0) {
@@ -1737,7 +1770,6 @@
                 const row = document.createElement('div');
                 row.className = 'item-row';
 
-                // Campo Nome do Item
                 const nameInput = document.createElement('input');
                 nameInput.type = 'text';
                 nameInput.className = 'input-control';
@@ -1746,7 +1778,6 @@
                 nameInput.setAttribute('aria-label', 'Nome do Item');
                 nameInput.addEventListener('input', (e) => updateBackpackItem(item.id, 'nome', e.target.value));
 
-                // Campo Descrição / O que faz
                 const descInput = document.createElement('input');
                 descInput.type = 'text';
                 descInput.className = 'input-control';
@@ -1755,7 +1786,6 @@
                 descInput.setAttribute('aria-label', 'Descrição do Item');
                 descInput.addEventListener('input', (e) => updateBackpackItem(item.id, 'descricao', e.target.value));
 
-                // Botão Remover Item
                 const delBtn = document.createElement('button');
                 delBtn.type = 'button';
                 delBtn.className = 'item-remove-btn';
@@ -1778,42 +1808,12 @@
         }
 
         // ======================================================================
-        // PERSISTÊNCIA LOCAL (localStorage)
+        // NORMALIZAÇÃO & BACKUP JSON
         // ======================================================================
-        function saveToLocalStorage() {
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(fichaState));
-                const statusEl = document.getElementById('save-status-text');
-                statusEl.textContent = 'Salvando...';
-                clearTimeout(saveBadgeTimer);
-                saveBadgeTimer = setTimeout(() => {
-                    statusEl.textContent = 'Salvo localmente';
-                }, 400);
-            } catch (err) {
-                console.error('Erro ao salvar no localStorage:', err);
-                showToast('Aviso: armazenamento local cheio (tente uma foto menor).');
-            }
-        }
-
-        function loadFromLocalStorage() {
-            try {
-                const raw = localStorage.getItem(STORAGE_KEY);
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    fichaState = normalizeImportedData(parsed);
-                }
-            } catch (err) {
-                console.error('Erro ao ler dados locais:', err);
-            }
-            renderStateToDOM();
-        }
-
-        // Normaliza dados importados (incluindo compatibilidade com fichas antigas)
         function normalizeImportedData(data) {
             const base = createDefaultState();
             if (!data || typeof data !== 'object') return base;
 
-            // Suporte direto ao formato v2
             TEXT_FIELDS.forEach(key => {
                 if (typeof data[key] === 'string') base[key] = data[key];
             });
@@ -1831,207 +1831,79 @@
                     descricao: String(item.descricao || '')
                 }));
             }
-
-            // Compatibilidade com formato legado v1 (p1-nome, attr-instinto, p2-itens, etc.)
-            if (data['p1-nome'] !== undefined) base.nome = String(data['p1-nome'] || '');
-            if (data['p1-origem'] !== undefined) base.origem = String(data['p1-origem'] || '');
-            if (data['p1-idade'] !== undefined) base.idade = String(data['p1-idade'] || '');
-            if (data['p1-nascimento'] !== undefined) base.nascimento = String(data['p1-nascimento'] || '');
-            if (data['p1-apelido'] !== undefined) base.apelido = String(data['p1-apelido'] || '');
-            if (data['p1-vitalidade'] !== undefined) base.vitalidade = parseInt(String(data['p1-vitalidade']).split('/')[0], 10) || 10;
-            if (data['p1-mental'] !== undefined) base.mental = parseInt(String(data['p1-mental']).split('/')[0], 10) || 10;
-            if (data['p1-pn'] !== undefined) base.pn = parseInt(data['p1-pn'], 10) || 0;
-            if (data['attr-instinto'] !== undefined) base.instinto = parseInt(data['attr-instinto'], 10) || 1;
-            if (data['attr-mente'] !== undefined) base.mente = parseInt(data['attr-mente'], 10) || 1;
-            if (data['attr-corpo'] !== undefined) base.corpo = parseInt(data['attr-corpo'], 10) || 1;
-            if (data['p1-traumas'] !== undefined) base.traumas = String(data['p1-traumas'] || '');
-            if (data['p1-vinculos'] !== undefined) base.vinculos = String(data['p1-vinculos'] || '');
-            if (data['p1-personalidade'] !== undefined) base.personalidade = String(data['p1-personalidade'] || '');
-            if (data['p2-ferimentos'] !== undefined) base.ferimentos = String(data['p2-ferimentos'] || '');
-            if (data['p2-doencas'] !== undefined) base.doencas = String(data['p2-doencas'] || '');
-            if (data['p2-equipamentos'] !== undefined) base.equipamentos = String(data['p2-equipamentos'] || '');
-            if (data['p2-habilidades'] !== undefined) base.habilidades = String(data['p2-habilidades'] || '');
-            if (data['p2-insanidade'] !== undefined) base.insanidade = String(data['p2-insanidade'] || '');
-            if (typeof data['p2-itens'] === 'string' && data['p2-itens'].trim() && base.mochila.length === 0) {
-                base.mochila.push({
-                    id: generateItemId(),
-                    nome: 'Itens Importados',
-                    descricao: data['p2-itens'].trim()
-                });
-            }
-
             return base;
         }
 
-        // ======================================================================
-        // SALVAR & CARREGAR FICHA (.JSON) EM PASTA DO CELULAR / COMPUTADOR
-        // ======================================================================
-        function getSanitizedFilename() {
-            const rawName = (fichaState.nome || fichaState.apelido || 'sobrevivente').trim().toLowerCase();
-            const cleanName = rawName
-                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-                .replace(/[^a-z0-9_-]+/g, '_')
-                .replace(/^_+|_+$/g, '') || 'sobrevivente';
-            return `${cleanName}_infeccao_x.json`;
-        }
-
-        async function saveFichaFile() {
+        function saveFichaFile() {
             handleFieldChange();
             const jsonContent = JSON.stringify(fichaState, null, 2);
-            const suggestedName = getSanitizedFilename();
-
-            // 1. Tenta File System Access API (permite escolher/criar pasta no Chrome Android/PC)
-            if (typeof window.showSaveFilePicker === 'function') {
-                try {
-                    const handle = await window.showSaveFilePicker({
-                        suggestedName: suggestedName,
-                        types: [{
-                            description: 'Ficha de Personagem Infecção X (.json)',
-                            accept: { 'application/json': ['.json'] }
-                        }]
-                    });
-                    const writable = await handle.createWritable();
-                    await writable.write(jsonContent);
-                    await writable.close();
-
-                    document.getElementById('file-label').textContent = handle.name;
-                    showToast(`Ficha salva na pasta: ${handle.name}`);
-                    return;
-                } catch (err) {
-                    // Se o usuário apenas cancelou a janela, não faz fallback
-                    if (err && err.name === 'AbortError') return;
-                    // Em ambientes restritos (iFrames/Safari/Firefox), segue para o fallback abaixo
-                }
-            }
-
-            // 2. Fallback Universal via Blob + <a download>
+            const filename = `${currentSheetId}_infeccao_x.json`;
             const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = suggestedName;
+            link.download = filename;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             setTimeout(() => URL.revokeObjectURL(url), 1000);
-
-            document.getElementById('file-label').textContent = suggestedName;
-            showToast(`Arquivo baixado: ${suggestedName}`);
+            showToast(`Backup salvo: ${filename}`);
         }
 
-        async function loadFichaFile() {
-            // 1. Tenta File System Access API
-            if (typeof window.showOpenFilePicker === 'function') {
-                try {
-                    const [handle] = await window.showOpenFilePicker({
-                        multiple: false,
-                        types: [{
-                            description: 'Ficha de Personagem Infecção X (.json)',
-                            accept: { 'application/json': ['.json'] }
-                        }]
-                    });
-                    const file = await handle.getFile();
-                    const text = await file.text();
-                    applyLoadedJson(text, file.name);
-                    return;
-                } catch (err) {
-                    if (err && err.name === 'AbortError') return;
-                }
-            }
-
-            // 2. Fallback Universal via <input type="file">
+        function loadFichaFile() {
             document.getElementById('json-file-input').click();
         }
 
         function handleFallbackJsonUpload(event) {
             const file = event.target.files && event.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = function(e) {
-                applyLoadedJson(e.target.result, file.name);
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    fichaState = normalizeImportedData(parsed);
+                    renderStateToDOM();
+                    saveLocalCache(currentSheetId, fichaState);
+                    pushToFirebaseNow();
+                    showToast('Backup carregado e enviado para a nuvem!');
+                } catch (err) {
+                    showToast('Erro: arquivo .json inválido.');
+                }
             };
             reader.readAsText(file);
             event.target.value = '';
         }
 
-        function applyLoadedJson(jsonText, fileName) {
-            try {
-                const parsed = JSON.parse(jsonText);
-                fichaState = normalizeImportedData(parsed);
-                renderStateToDOM();
-                saveToLocalStorage();
-                document.getElementById('file-label').textContent = fileName || 'FICHA CARREGADA';
-                showToast('Ficha carregada com sucesso!');
-            } catch (err) {
-                console.error('JSON inválido:', err);
-                showToast('Erro: arquivo .json inválido ou corrompido.');
-            }
-        }
-
         // ======================================================================
-        // BAIXAR APLICATIVO COMPLETO OFFLINE (.HTML)
+        // LIMPAR FICHA & TOAST
         // ======================================================================
-        function downloadOfflineApp() {
-            handleFieldChange();
-            // Clona o documento atual para gerar um arquivo HTML limpo e autocontido
-            const clone = document.documentElement.cloneNode(true);
-
-            // Garante que toast e modal não fiquem abertos no HTML exportado
-            const clonedToast = clone.querySelector('#toast');
-            if (clonedToast) clonedToast.classList.remove('show');
-            const clonedModal = clone.querySelector('#reset-modal');
-            if (clonedModal) clonedModal.classList.add('hidden');
-
-            const fullHtml = '<!DOCTYPE html>\n' + clone.outerHTML;
-            const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = 'ficha_infeccao_x_offline.html';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
-
-            showToast('App Offline baixado! Abra o arquivo .html no celular sem internet.');
-        }
-
-        // ======================================================================
-        // LIMPAR FICHA (MODAL CUSTOMIZADO) & TOAST
-        // ======================================================================
-        function openResetModal() {
-            document.getElementById('reset-modal').classList.remove('hidden');
-        }
-
-        function closeResetModal() {
-            document.getElementById('reset-modal').classList.add('hidden');
-        }
+        function openResetModal() { document.getElementById('reset-modal').classList.remove('hidden'); }
+        function closeResetModal() { document.getElementById('reset-modal').classList.add('hidden'); }
 
         function confirmResetFicha() {
-            localStorage.removeItem(STORAGE_KEY);
             fichaState = createDefaultState();
             renderStateToDOM();
-            document.getElementById('file-label').textContent = 'REGISTRO PESSOAL';
+            saveLocalCache(currentSheetId, fichaState);
+            pushToFirebaseNow();
             closeResetModal();
-            showToast('Ficha limpa com sucesso.');
+            showToast('Ficha limpa na nuvem e localmente.');
         }
 
         function showToast(message) {
             const toast = document.getElementById('toast');
-            const msgEl = document.getElementById('toast-msg');
-            msgEl.textContent = message;
+            document.getElementById('toast-msg').textContent = message;
             toast.classList.add('show');
-
             clearTimeout(toastTimer);
-            toastTimer = setTimeout(() => {
-                toast.classList.remove('show');
-            }, 3200);
+            toastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
         }
 
-        // Inicialização ao carregar a página
+        // ======================================================================
+        // STARTUP
+        // ======================================================================
         window.addEventListener('DOMContentLoaded', () => {
-            loadFromLocalStorage();
+            const initialId = resolveInitialSheetId();
+            initFirebase();
+            connectToSheet(initialId);
         });
     </script>
 </body>
